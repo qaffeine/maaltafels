@@ -15,6 +15,7 @@
   const RACE_MS = 60000;
   const GOALS = [5, 10, 15]; // daily goal options, in minutes
   const DUEL_ROUNDS = 10;
+  const MAX_QUESTION_MS = 20000; // longer on one question counts as a break
   const LEVEL_NAMES = ['Nog niet geoefend', 'Net begonnen', 'Gaat soms goed', 'Gaat meestal goed', 'Goed gekend', 'Automatisch'];
   const DAY_NAMES = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
 
@@ -570,23 +571,46 @@
     if (game.tick) clearInterval(game.tick);
   }
 
+  // Stopping halfway still counts the practice time for the daily goal.
   function quitGame() {
     stopTimers();
+    if (game && !game.finished) {
+      const last = game.answers[game.answers.length - 1];
+      const onFeedback = last && last.spent == null; // answered, feedback or hint on screen
+      closeLastAnswer();
+      let secs = practiceSeconds(game.answers);
+      // The question on screen that wasn't answered yet counts too.
+      if (!onFeedback && game.qStart) secs += Math.min(Date.now() - game.qStart, MAX_QUESTION_MS) / 1000;
+      if (secs > 0) {
+        addPracticeTime(profile(), secs, game.answers.length > 0);
+        persist();
+      }
+    }
     game = null;
     showHome();
   }
 
-  // Saves a finished round into a player's profile: practice time, streak, stars.
-  function applyRound(p, answers) {
+  // Practice time per question (incl. feedback and hint), capped so a paused game doesn't count.
+  function practiceSeconds(answers) {
+    return answers.reduce((s, a) => s + Math.min(a.spent || a.ms, MAX_QUESTION_MS), 0) / 1000;
+  }
+
+  // Adds practice time to today's total for the daily goal.
+  // Returns true when this addition reached the goal.
+  function addPracticeTime(p, secs, countsForStreak) {
     const now = new Date();
     const today = L.dateKey(now);
     const goalSecs = goalMinutes(p) * 60;
     const before = p.daily[today] || 0;
-
-    // Practice time per question (incl. feedback and hint), capped so a paused game doesn't count.
-    const secs = answers.reduce((s, a) => s + Math.min(a.spent || a.ms, 20000), 0) / 1000;
     p.daily[today] = before + secs;
-    p.streak = L.updateStreak(p.streak, now);
+    if (countsForStreak) p.streak = L.updateStreak(p.streak, now);
+    return before < goalSecs && before + secs >= goalSecs;
+  }
+
+  // Saves a finished round into a player's profile: practice time, streak, stars.
+  function applyRound(p, answers) {
+    const secs = practiceSeconds(answers);
+    const goalReached = addPracticeTime(p, secs, true);
     p.rounds = (p.rounds || 0) + 1;
     p.totalCorrect = (p.totalCorrect || 0) + answers.filter((a) => a.correct).length;
 
@@ -602,7 +626,7 @@
         newStars.push({ t, s });
       }
     });
-    return { secs, newStars, goalReached: before < goalSecs && before + secs >= goalSecs };
+    return { secs, newStars, goalReached };
   }
 
   function finishGame() {
@@ -847,6 +871,23 @@
     }, anyWrong ? 2200 : 1400));
   }
 
+  // Stopping a duel halfway: answers already given still count for profiles.
+  function quitDuel() {
+    if (duel && duel.started && !duel.finished) {
+      stopDuel();
+      duel.finished = true;
+      duel.players.forEach((pl) => {
+        if (!pl.profile || !pl.answers.length) return;
+        pl.answers.forEach((a) => {
+          pl.profile.stats[a.q.key] = L.updateFact(pl.profile.stats[a.q.key], a.correct, a.ms);
+        });
+        addPracticeTime(pl.profile, practiceSeconds(pl.answers), true);
+      });
+      persist();
+    }
+    showHome();
+  }
+
   function stopDuel() {
     if (!duel) return;
     duel.timers.forEach(clearTimeout);
@@ -1070,7 +1111,7 @@
     },
     'duel-player': (el) => { duelPlayers[Number(el.dataset.slot)] = el.dataset.id; renderPicker(); },
     'duel-again': () => startDuel(duel.tables),
-    'quit-duel': () => showHome(),
+    'quit-duel': () => quitDuel(),
     continue: () => continueAfterHint(),
     'toggle-known': (el) => {
       const p = profile();

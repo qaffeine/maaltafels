@@ -97,7 +97,7 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 | R-1 | A home screen shows each table with 0–3 stars. 1★ = practised, 2★ = ≥80% correct, 3★ = all 10 facts at mastery level ≥4 (or a passed test). | M |
 | R-2 | End-of-round summary: score, time, and new stars or a new record. | M |
 | R-3 | Daily streak counter (days in a row with at least one round played). | S |
-| R-6 | Daily goal: a ring on the home screen fills up towards the day's practice minutes (5, 10 or 15; set by a parent, default 5). Reaching it is celebrated once on the results screen. Practice time per question includes feedback and hint time, capped at 20 s. | M |
+| R-6 | Daily goal: a ring on the home screen fills up towards the day's practice minutes (5, 10 or 15; set by a parent, default 5). Reaching it is celebrated once on the results screen. Practice time per question includes feedback and hint time, capped at 20 s. Rounds stopped early (✕) count too, including the question on screen; a stopped duel saves the answers already given. | M |
 | R-4 | Badges, e.g. "first round", "table of 7 mastered", "100 correct", "all tables". | C |
 | R-5 | Motivation stays positive: nothing is ever taken away and there are no punishing messages. | M |
 
