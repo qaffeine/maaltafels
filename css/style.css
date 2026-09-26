@@ -527,8 +527,7 @@ body[data-theme="obby"] {
 .player-chip:disabled { opacity: .4; }
 
 .duel { gap: 10px; min-height: calc(100vh - 40px); }
-.duel-top { display: flex; justify-content: space-between; align-items: center; font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-.duel-top-spacer { width: 52px; }
+.duel-top { display: flex; align-items: center; }
 /* No pinch-zoom when two children tap at once. */
 .duel-sides { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; touch-action: none; }
 .side {
@@ -559,12 +558,49 @@ body[data-theme="obby"] {
 .duel-wait .muted { font-size: 1rem; font-weight: 700; }
 .duel-wait-icon { font-size: 2.4rem; }
 
-.countdown {
-  position: fixed; inset: 0; z-index: 10;
+.side { position: relative; }
+.side-round { font-size: .95rem; font-weight: 800; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.side-countdown {
+  position: absolute; inset: 0; z-index: 2;
   display: grid; place-items: center;
-  background: rgba(255, 255, 255, .6);
-  font-size: 10rem; font-weight: 900; color: var(--ink);
+  border-radius: inherit; background: rgba(255, 255, 255, .7);
+  font-size: 7rem; font-weight: 900; color: var(--ink);
 }
+.duel-seat { display: flex; flex-direction: column; gap: 10px; }
+
+/* Facing each other: the tablet lies flat, each half turns towards its player.
+   Landscape: players at the left and right short sides (halves turned 90°).
+   Portrait: players at the top and bottom (top half upside down). */
+.duel.facing { position: fixed; inset: 0; z-index: 5; min-height: 0; padding: 0; gap: 0; }
+.duel.facing .duel-top { position: absolute; left: 50%; top: 50%; z-index: 3; transform: translate(-50%, -50%); }
+.duel.facing .duel-sides { position: absolute; inset: 0; display: block; }
+.duel.facing .side { position: absolute; container-type: size; transform-origin: center; }
+@media (orientation: landscape) {
+  .duel.facing .side {
+    top: 50%;
+    width: calc(100vh - 24px); width: calc(100dvh - 24px);
+    height: calc(50vw - 48px);
+  }
+  .duel.facing .side-0 { left: 25vw; transform: translate(-50%, -50%) rotate(90deg); }
+  .duel.facing .side-1 { left: 75vw; transform: translate(-50%, -50%) rotate(-90deg); }
+}
+@media (orientation: portrait) {
+  .duel.facing .side {
+    left: 50%;
+    width: calc(100vw - 24px);
+    height: calc(50vh - 48px); height: calc(50dvh - 48px);
+  }
+  .duel.facing .side-0 { top: 25vh; top: 25dvh; transform: translate(-50%, -50%) rotate(180deg); }
+  .duel.facing .side-1 { top: 75vh; top: 75dvh; transform: translate(-50%, -50%); }
+}
+/* Sizes follow the player's own field, not the screen. */
+.duel.facing .side-head { font-size: clamp(.95rem, 3.6cqw, 1.3rem); }
+.duel.facing .side-sign.sign { font-size: clamp(1.4rem, 8cqw, 3.6rem); padding: 2cqh 10px 2.4cqh; }
+.duel.facing .side-fb { min-height: 1.4em; font-size: clamp(.9rem, 3cqw, 1.15rem); }
+.duel.facing .side .choices { gap: clamp(6px, 2cqh, 14px); }
+.duel.facing .side .choice { min-height: clamp(44px, 17cqh, 88px); font-size: clamp(1.3rem, 6cqw, 2.4rem); }
+.duel.facing .duel-wait { min-height: clamp(96px, 37cqh, 190px); }
+.duel.facing .side-countdown { font-size: clamp(3rem, 30cqh, 8rem); }
 
 .duel-scores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
 .duel-score { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px; border-radius: var(--radius-md); background: #fff; }

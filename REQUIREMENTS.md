@@ -67,6 +67,7 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 - After a player answers, their choices are hidden ("Klaar! Wachten op …"), so the other player can't copy.
 - The next round starts only when both have answered. Then both results are shown at the same time (✓ or the correct fact).
 - The most correct answers after 10 rounds wins; a tie is possible.
+- Seating, chosen in the duel setup and remembered: **Tegenover elkaar** (default on tablets; the tablet lies flat and each half turns towards its player: landscape = players at the left and right short sides, portrait = players at the top and bottom) or **Naast elkaar** (default on computers; both halves upright). Round counter and countdown are shown on each player's own half.
 - Answers count toward each profile's mastery, stars, streak and daily goal. Guests save nothing.
 
 ## 5. Question & answer interaction

@@ -712,6 +712,23 @@
 
   // ---------- duel ----------
 
+  // Facing each other (tablet flat on the table) or side by side (upright screen).
+  function duelSeat() {
+    if (data.duelSeat) return data.duelSeat;
+    return window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 'facing' : 'side';
+  }
+
+  function duelSeatHtml() {
+    const seat = duelSeat();
+    return `<div class="duel-seat">
+      <h2>Hoe zitten jullie?</h2>
+      <div class="groups" role="group" aria-label="Hoe zitten jullie?">
+        <button class="chip" data-action="duel-seat" data-seat="facing" aria-pressed="${seat === 'facing'}">Tegenover elkaar, tablet plat op tafel</button>
+        <button class="chip" data-action="duel-seat" data-seat="side" aria-pressed="${seat === 'side'}">Naast elkaar</button>
+      </div>
+    </div>`;
+  }
+
   function duelPlayersHtml() {
     const opts = data.profiles.map((p) => ({ id: p.id, avatar: p.avatar, name: p.name }))
       .concat([{ id: 'guest', avatar: '🙂', name: 'Gast' }]);
@@ -724,7 +741,8 @@
             <span aria-hidden="true">${o.avatar}</span> ${esc(o.name)}</button>`;
         }).join('')}
       </div>
-    </div>`).join('')}</div>`;
+    </div>`).join('')}</div>
+    ${duelSeatHtml()}`;
   }
 
   function makeDuelPlayer(id, i) {
@@ -753,39 +771,40 @@
       started: false,
       finished: false
     };
-    render(`<section class="screen duel">
+    // Each player has their own round counter and countdown, so both can read
+    // them when sitting across from each other.
+    render(`<section class="screen duel${duelSeat() === 'facing' ? ' facing' : ''}">
       <header class="duel-top">
         <button class="icon-btn" data-action="quit-duel" aria-label="Duel stoppen">✕</button>
-        <span class="timer" id="duel-round">Ronde <b>1</b> van ${DUEL_ROUNDS}</span>
-        <span class="duel-top-spacer"></span>
       </header>
       <div class="duel-sides">
         ${duel.players.map((pl, i) => `<div class="side side-${i}">
           <div class="side-head">
             <span class="avatar" aria-hidden="true">${pl.avatar}</span>
             <span class="side-name">${esc(pl.name)}</span>
+            <span class="side-round">Ronde <b class="round-num">1</b>/${DUEL_ROUNDS}</span>
             <span class="side-score" id="score-${i}" aria-label="${esc(pl.name)}: 0 juist">0</span>
           </div>
           <div class="sign side-sign" id="sign-${i}"><span class="sign-q" id="q-${i}">…</span><span class="sign-ans" id="ans-${i}">?</span></div>
           <p class="feedback side-fb" id="fb-${i}" role="status"></p>
           <div class="side-input" id="input-${i}"></div>
+          <div class="side-countdown" aria-live="assertive"></div>
         </div>`).join('')}
       </div>
-      <div class="countdown" id="countdown" aria-live="assertive"></div>
     </section>`);
 
     let n = 3;
     const tick = () => {
-      const el = document.getElementById('countdown');
-      if (!duel || !el) return;
+      const els = app.querySelectorAll('.side-countdown');
+      if (!duel || !els.length) return;
       if (n > 0) {
-        el.textContent = n;
+        els.forEach((el) => { el.textContent = n; });
         Sound.play('tap');
         n--;
         duel.timers.push(setTimeout(tick, 800));
         return;
       }
-      el.remove();
+      els.forEach((el) => el.remove());
       duel.started = true;
       showDuelRound();
     };
@@ -801,7 +820,7 @@
     duel.opts = L.multipleChoice(q);
     duel.roundStart = Date.now();
     duel.revealed = false;
-    document.querySelector('#duel-round b').textContent = duel.round + 1;
+    app.querySelectorAll('.round-num').forEach((el) => { el.textContent = duel.round + 1; });
     duel.players.forEach((pl, i) => {
       pl.choice = null;
       document.getElementById(`q-${i}`).textContent = `${q.a} × ${q.b} =`;
@@ -1110,6 +1129,11 @@
       else startGame(pickerMode, pickerSel);
     },
     'duel-player': (el) => { duelPlayers[Number(el.dataset.slot)] = el.dataset.id; renderPicker(); },
+    'duel-seat': (el) => {
+      data.duelSeat = el.dataset.seat;
+      persist();
+      app.querySelectorAll('[data-action="duel-seat"]').forEach((b) => b.setAttribute('aria-pressed', b === el));
+    },
     'duel-again': () => startDuel(duel.tables),
     'quit-duel': () => quitDuel(),
     continue: () => continueAfterHint(),
