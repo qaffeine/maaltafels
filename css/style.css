@@ -484,8 +484,15 @@ button:disabled { cursor: default; }
 .side-sign .sign-q { white-space: nowrap; }
 .side-fb { min-height: 1.6em; font-size: 1.1rem; justify-content: center; }
 .side-input { margin-top: auto; }
-.side .key { min-height: 58px; font-size: 1.7rem; }
 .side .choice { min-height: 76px; font-size: 2rem; }
+
+.duel-wait {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  min-height: 166px; border-radius: var(--radius-lg); background: var(--paper);
+  font-size: 1.5rem; font-weight: 900; text-align: center;
+}
+.duel-wait .muted { font-size: 1rem; font-weight: 700; }
+.duel-wait-icon { font-size: 2.4rem; }
 
 .countdown {
   position: fixed; inset: 0; z-index: 10;
@@ -502,10 +509,9 @@ button:disabled { cursor: default; }
   .duel-setup { grid-template-columns: 1fr; }
   .duel-sides { gap: 8px; }
   .side { padding: 8px; }
-  .side .keypad { gap: 6px; }
-  .side .key { min-height: 48px; font-size: 1.3rem; }
   .side .choices { gap: 8px; }
   .side .choice { min-height: 60px; font-size: 1.5rem; }
+  .duel-wait { min-height: 128px; font-size: 1.2rem; }
 }
 
 /* ---------- theme picker (profile form) ---------- */

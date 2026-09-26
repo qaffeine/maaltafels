@@ -63,9 +63,10 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 
 ### 4.5 Duel. **M**
 - Two players on one screen, side by side. Each player is a profile or a guest.
-- Both get the same questions from the chosen tables and answer at their own pace.
-- 3-2-1 countdown, then 60 seconds; the most correct answers wins (a tie is possible).
-- Each side uses that player's own input setting (keypad or 4 choices). Buttons react on touch-down, so both can tap at the same time.
+- 10 rounds. In each round both players get the same question with the same 4 answer choices (always multiple choice, whatever the profile setting).
+- After a player answers, their choices are hidden ("Klaar! Wachten op …"), so the other player can't copy.
+- The next round starts only when both have answered. Then both results are shown at the same time (✓ or the correct fact).
+- The most correct answers after 10 rounds wins; a tie is possible.
 - Answers count toward each profile's mastery, stars, streak and daily goal. Guests save nothing.
 
 ## 5. Question & answer interaction

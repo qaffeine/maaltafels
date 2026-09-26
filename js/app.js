@@ -9,11 +9,12 @@
     tijdrace: { title: 'Tijdrace', icon: '⏱️', desc: 'Zoveel mogelijk in 60 seconden', picker: true },
     slim: { title: 'Slim oefenen', icon: '🧠', desc: 'Oefen wat je nog moeilijk vindt', picker: false },
     toets: { title: 'Toets', icon: '📝', desc: '20 sommen, uitslag op het einde', picker: true },
-    duel: { title: 'Duel', icon: '🆚', desc: 'Met twee tegen elkaar op één scherm', picker: true }
+    duel: { title: 'Duel', icon: '🆚', desc: 'Met twee tegen elkaar, 10 rondes', picker: true }
   };
   const ROUND_SIZE = { oefenen: 10, slim: 20, toets: 20 };
   const RACE_MS = 60000;
   const GOALS = [5, 10, 15]; // daily goal options, in minutes
+  const DUEL_ROUNDS = 10;
   const LEVEL_NAMES = ['Nog niet geoefend', 'Net begonnen', 'Gaat soms goed', 'Gaat meestal goed', 'Goed gekend', 'Automatisch'];
   const DAY_NAMES = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
 
@@ -298,7 +299,7 @@
       ${topbar(profile(), m.title)}
       <div class="guide"><span class="mascot" aria-hidden="true">${theme().mascot}</span>
         <p class="bubble">${pickerMode === 'duel'
-          ? 'Kies wie er tegen elkaar speelt en welke tafels. Jullie krijgen dezelfde sommen. Wie heeft er na 60 seconden de meeste juist?'
+          ? 'Kies wie er tegen elkaar speelt en welke tafels. Jullie krijgen allebei dezelfde som en kiezen uit 4 antwoorden. Na 10 rondes wint wie de meeste juist heeft.'
           : 'Welke tafels wil je doen? Kies er één, een paar of allemaal. De sommen worden gemengd.'}</p></div>
       ${pickerMode === 'duel' ? duelPlayersHtml() : ''}
       <div class="groups" role="group" aria-label="Snel kiezen">
@@ -689,27 +690,29 @@
       profile: p,
       name: p ? p.name : (twoGuests ? `Gast ${i + 1}` : 'Gast'),
       avatar: p ? p.avatar : '🙂',
-      mc: p ? p.settings.mc : true,
-      idx: 0, input: '', locked: true, score: 0, answers: [], qStart: 0
+      choice: null, ms: 0, score: 0, answers: []
     };
   }
 
-  // Both players get the same questions and answer at their own pace for 60 s.
+  // Rounds: both players get the same question and the same 4 choices.
+  // The next round starts only when both have answered.
   function startDuel(tables) {
     stopDuel();
     game = null;
     tables = L.normalizeTables(tables);
     duel = {
       tables,
-      qs: L.buildRound(tables, 100),
+      qs: L.buildRound(tables, DUEL_ROUNDS),
+      round: 0,
       players: [makeDuelPlayer(duelPlayers[0], 0), makeDuelPlayer(duelPlayers[1], 1)],
       timers: [],
+      started: false,
       finished: false
     };
     render(`<section class="screen duel">
       <header class="duel-top">
         <button class="icon-btn" data-action="quit-duel" aria-label="Duel stoppen">✕</button>
-        <span class="timer" id="duel-timer">⏱ <b>60</b></span>
+        <span class="timer" id="duel-round">Ronde <b>1</b> van ${DUEL_ROUNDS}</span>
         <span class="duel-top-spacer"></span>
       </header>
       <div class="duel-sides">
@@ -739,99 +742,95 @@
         return;
       }
       el.remove();
-      Sound.play('correct');
-      duel.endsAt = Date.now() + RACE_MS;
-      duel.timers.push(setTimeout(finishDuel, RACE_MS));
-      duel.tick = setInterval(updateDuelTimer, 200);
-      duel.players.forEach((_, i) => showDuelQuestion(i));
+      duel.started = true;
+      showDuelRound();
     };
     tick();
   }
 
-  function showDuelQuestion(i) {
-    const pl = duel.players[i];
-    if (pl.idx >= duel.qs.length) duel.qs = duel.qs.concat(L.buildRound(duel.tables, 50));
-    const q = duel.qs[pl.idx];
-    pl.input = '';
-    pl.locked = false;
-    pl.qStart = Date.now();
-    document.getElementById(`q-${i}`).textContent = `${q.a} × ${q.b} =`;
-    const ans = document.getElementById(`ans-${i}`);
-    ans.textContent = '?';
-    ans.classList.remove('filled');
-    document.getElementById(`sign-${i}`).classList.remove('is-correct', 'is-wrong');
-    document.getElementById(`fb-${i}`).textContent = '';
-    document.getElementById(`input-${i}`).innerHTML = pl.mc
-      ? `<div class="choices">${L.multipleChoice(q).map((o) => `<button class="choice" data-duel="choose" data-side="${i}" data-value="${o}">${o}</button>`).join('')}</div>`
-      : `<div class="keypad">
-          ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => `<button class="key" data-duel="digit" data-side="${i}" data-digit="${d}">${d}</button>`).join('')}
-          <button class="key key-erase" data-duel="erase" data-side="${i}" aria-label="Wissen">⌫</button>
-          <button class="key" data-duel="digit" data-side="${i}" data-digit="0">0</button>
-          <button class="key key-ok" data-duel="ok" data-side="${i}">OK</button>
-        </div>`;
+  function duelChoicesHtml(i) {
+    return `<div class="choices">${duel.opts.map((o) => `<button class="choice" data-duel="choose" data-side="${i}" data-value="${o}">${o}</button>`).join('')}</div>`;
+  }
+
+  function showDuelRound() {
+    const q = duel.qs[duel.round];
+    duel.opts = L.multipleChoice(q);
+    duel.roundStart = Date.now();
+    duel.revealed = false;
+    document.querySelector('#duel-round b').textContent = duel.round + 1;
+    duel.players.forEach((pl, i) => {
+      pl.choice = null;
+      document.getElementById(`q-${i}`).textContent = `${q.a} × ${q.b} =`;
+      const ans = document.getElementById(`ans-${i}`);
+      ans.textContent = '?';
+      ans.classList.remove('filled');
+      document.getElementById(`sign-${i}`).classList.remove('is-correct', 'is-wrong');
+      document.getElementById(`fb-${i}`).textContent = '';
+      document.getElementById(`input-${i}`).innerHTML = duelChoicesHtml(i);
+    });
   }
 
   function duelInput(el) {
-    if (!duel || duel.finished || !duel.endsAt) return;
+    if (!duel || !duel.started || duel.finished || duel.revealed) return;
     const i = Number(el.dataset.side);
     const pl = duel.players[i];
-    if (pl.locked) return;
-    const kind = el.dataset.duel;
-    if (kind === 'ok') return duelSubmit(i, pl.input);
-    if (kind === 'choose') return duelSubmit(i, el.dataset.value);
-    if (kind === 'digit' && pl.input.length < 3) pl.input = (pl.input === '0' ? '' : pl.input) + el.dataset.digit;
-    if (kind === 'erase') pl.input = pl.input.slice(0, -1);
-    const ans = document.getElementById(`ans-${i}`);
-    ans.textContent = pl.input || '?';
-    ans.classList.toggle('filled', !!pl.input);
+    if (pl.choice != null) return;
+    pl.choice = Number(el.dataset.value);
+    pl.ms = Date.now() - duel.roundStart;
+    Sound.play('tap');
+    // Hide the choices after answering, so the other player can't copy.
+    const other = duel.players[1 - i];
+    if (other.choice == null) {
+      document.getElementById(`input-${i}`).innerHTML = `<div class="duel-wait" role="status">
+        <span class="duel-wait-icon" aria-hidden="true">👍</span>Klaar!<span class="muted">Wachten op ${esc(other.name)}…</span></div>`;
+      document.getElementById(`fb-${1 - i}`).textContent = `${pl.name} is klaar`;
+    } else {
+      revealDuelRound();
+    }
   }
 
-  function duelSubmit(i, value) {
-    if (value === '' || value == null) return;
-    const pl = duel.players[i];
-    const q = duel.qs[pl.idx];
-    const given = Number(value);
-    const correct = given === q.answer;
-    pl.locked = true;
-    pl.answers.push({ q, given, correct, ms: Date.now() - pl.qStart });
-
-    const ans = document.getElementById(`ans-${i}`);
-    ans.textContent = given;
-    ans.classList.add('filled');
-    highlightChoice(given, q.answer, document.getElementById(`input-${i}`));
-    const sign = document.getElementById(`sign-${i}`);
-    if (correct) {
-      pl.score++;
-      const sc = document.getElementById(`score-${i}`);
-      sc.textContent = pl.score;
-      sc.setAttribute('aria-label', `${pl.name}: ${pl.score} juist`);
-      sign.classList.add('is-correct');
-      Sound.play('correct');
-    } else {
-      sign.classList.add('is-wrong');
-      document.getElementById(`fb-${i}`).innerHTML = `<span class="fb-icon miss" aria-hidden="true">✗</span> <b>${q.a} × ${q.b} = ${q.answer}</b>`;
-      Sound.play('wrong');
-    }
+  // Both answered: show on both sides at once who was right.
+  function revealDuelRound() {
+    duel.revealed = true;
+    const q = duel.qs[duel.round];
+    let anyWrong = false;
+    let anyRight = false;
+    duel.players.forEach((pl, i) => {
+      const correct = pl.choice === q.answer;
+      pl.answers.push({ q, given: pl.choice, correct, ms: pl.ms });
+      const ans = document.getElementById(`ans-${i}`);
+      ans.textContent = pl.choice;
+      ans.classList.add('filled');
+      document.getElementById(`sign-${i}`).classList.add(correct ? 'is-correct' : 'is-wrong');
+      const box = document.getElementById(`input-${i}`);
+      box.innerHTML = duelChoicesHtml(i);
+      highlightChoice(pl.choice, q.answer, box);
+      const fb = document.getElementById(`fb-${i}`);
+      if (correct) {
+        anyRight = true;
+        pl.score++;
+        const sc = document.getElementById(`score-${i}`);
+        sc.textContent = pl.score;
+        sc.setAttribute('aria-label', `${pl.name}: ${pl.score} juist`);
+        fb.innerHTML = '<span class="fb-icon ok" aria-hidden="true">✓</span> Juist!';
+      } else {
+        anyWrong = true;
+        fb.innerHTML = `<span class="fb-icon miss" aria-hidden="true">✗</span> <b>${q.a} × ${q.b} = ${q.answer}</b>`;
+      }
+    });
+    Sound.play(anyRight ? 'correct' : 'wrong');
     duel.timers.push(setTimeout(() => {
       if (!duel || duel.finished) return;
-      pl.idx++;
-      showDuelQuestion(i);
-    }, correct ? 350 : 1200));
-  }
-
-  function updateDuelTimer() {
-    const el = document.getElementById('duel-timer');
-    if (!duel || !el) return;
-    const left = Math.max(0, Math.ceil((duel.endsAt - Date.now()) / 1000));
-    el.querySelector('b').textContent = left;
-    el.classList.toggle('low', left <= 10);
+      duel.round++;
+      if (duel.round >= DUEL_ROUNDS) finishDuel();
+      else showDuelRound();
+    }, anyWrong ? 2200 : 1400));
   }
 
   function stopDuel() {
     if (!duel) return;
     duel.timers.forEach(clearTimeout);
     duel.timers = [];
-    if (duel.tick) clearInterval(duel.tick);
   }
 
   function finishDuel() {
@@ -856,7 +855,7 @@
     Sound.play('reward');
     render(`<section class="screen results">
       <div class="guide"><span class="mascot cheer" aria-hidden="true">${theme().mascot}</span>
-        <p class="bubble">${winner ? `Knap gespeeld, allebei! ${esc(winner.name)} was net iets sneller.` : 'Gelijkspel! Jullie zijn even snel.'}</p></div>
+        <p class="bubble">${winner ? `Knap gespeeld, allebei! ${esc(winner.name)} had er net iets meer juist.` : 'Gelijkspel! Jullie zijn allebei even goed.'}</p></div>
       <div class="card result-card">
         <h1>${winner ? `🏆 ${esc(winner.name)} wint!` : '🤝 Gelijkspel!'}</h1>
         <div class="duel-scores">
