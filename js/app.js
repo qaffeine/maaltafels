@@ -8,10 +8,12 @@
     oefenen: { title: 'Oefenen', icon: '🎯', desc: '10 sommen, zonder tijd', picker: true },
     tijdrace: { title: 'Tijdrace', icon: '⏱️', desc: 'Zoveel mogelijk in 60 seconden', picker: true },
     slim: { title: 'Slim oefenen', icon: '🧠', desc: 'Oefen wat je nog moeilijk vindt', picker: false },
-    toets: { title: 'Toets', icon: '📝', desc: '20 sommen, uitslag op het einde', picker: true }
+    toets: { title: 'Toets', icon: '📝', desc: '20 sommen, uitslag op het einde', picker: true },
+    duel: { title: 'Duel', icon: '🆚', desc: 'Met twee tegen elkaar op één scherm', picker: true }
   };
   const ROUND_SIZE = { oefenen: 10, slim: 20, toets: 20 };
   const RACE_MS = 60000;
+  const GOALS = [5, 10, 15]; // daily goal options, in minutes
   const LEVEL_NAMES = ['Nog niet geoefend', 'Net begonnen', 'Gaat soms goed', 'Gaat meestal goed', 'Goed gekend', 'Automatisch'];
   const DAY_NAMES = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
 
@@ -21,6 +23,8 @@
   let pickerMode = null;
   let pickerSel = [];
   let holdTimer = null;
+  let duel = null;
+  let duelPlayers = ['guest', 'guest'];
 
   // ---------- helpers ----------
 
@@ -82,6 +86,30 @@
     return (p.streak.last === L.dateKey(today) || p.streak.last === L.dateKey(y)) ? p.streak.count : 0;
   }
 
+  function goalMinutes(p) {
+    return p.settings.goal || GOALS[0];
+  }
+
+  function todaySeconds(p) {
+    return p.daily[L.dateKey(new Date())] || 0;
+  }
+
+  // Ring that fills up towards today's practice goal.
+  function goalChip(p) {
+    const goal = goalMinutes(p);
+    const secs = todaySeconds(p);
+    const done = Math.min(1, secs / (goal * 60));
+    const min = Math.floor(secs / 60);
+    const C = 2 * Math.PI * 11;
+    return `<span class="goal${done >= 1 ? ' goal-done' : ''}" role="img" aria-label="Dagdoel: ${min} van ${goal} minuten geoefend">
+      <svg viewBox="0 0 28 28" aria-hidden="true">
+        <circle class="goal-track" cx="14" cy="14" r="11"/>
+        <circle class="goal-fill" cx="14" cy="14" r="11" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - done)).toFixed(1)}"/>
+      </svg>
+      <span aria-hidden="true">${done >= 1 ? 'Doel gehaald!' : `${min} / ${goal} min`}</span>
+    </span>`;
+  }
+
   function topbar(p, title) {
     if (title) {
       return `<header class="topbar">
@@ -95,6 +123,7 @@
         <span class="avatar" aria-hidden="true">${p.avatar}</span><span>${esc(p.name)}</span>
       </button>
       <div class="topbar-right">
+        ${goalChip(p)}
         ${streak ? `<span class="streak" title="${streak} dagen na elkaar gespeeld">🔥 ${streak} ${streak === 1 ? 'dag' : 'dagen'}</span>` : ''}
         <button class="icon-btn" data-action="toggle-sound" aria-pressed="${p.settings.sound}" aria-label="Geluid ${p.settings.sound ? 'uit' : 'aan'}zetten">${p.settings.sound ? '🔊' : '🔇'}</button>
       </div>
@@ -206,6 +235,8 @@
     const p = profile();
     if (!p) return showProfiles();
     game = null;
+    stopDuel();
+    duel = null;
     Sound.enabled = p.settings.sound;
     render(`<section class="screen home">
       ${topbar(p)}
@@ -252,6 +283,10 @@
     const p = profile();
     pickerMode = mode;
     pickerSel = L.normalizeTables(preset || p.lastSelection || [2]);
+    if (mode === 'duel') {
+      const other = data.profiles.find((x) => x.id !== p.id);
+      duelPlayers = [p.id, other ? other.id : 'guest'];
+    }
     renderPicker();
   }
 
@@ -262,7 +297,10 @@
     render(`<section class="screen picker-screen">
       ${topbar(profile(), m.title)}
       <div class="guide"><span class="mascot" aria-hidden="true">${theme().mascot}</span>
-        <p class="bubble">Welke tafels wil je doen? Kies er één, een paar of allemaal. De sommen worden gemengd.</p></div>
+        <p class="bubble">${pickerMode === 'duel'
+          ? 'Kies wie er tegen elkaar speelt en welke tafels. Jullie krijgen dezelfde sommen. Wie heeft er na 60 seconden de meeste juist?'
+          : 'Welke tafels wil je doen? Kies er één, een paar of allemaal. De sommen worden gemengd.'}</p></div>
+      ${pickerMode === 'duel' ? duelPlayersHtml() : ''}
       <div class="groups" role="group" aria-label="Snel kiezen">
         <button class="chip" data-action="group" data-group="alles" aria-pressed="${same('alles')}">Alles</button>
         <button class="chip" data-action="group" data-group="makkelijk" aria-pressed="${same('makkelijk')}">Makkelijk (1, 2, 5, 10)</button>
@@ -332,11 +370,20 @@
     <span class="progress-text">${game.idx + 1}/${total}</span>`;
   }
 
+  // Time spent on the previous question, including feedback and hint:
+  // this is what counts as practice time for the daily goal.
+  function closeLastAnswer() {
+    const last = game.answers[game.answers.length - 1];
+    if (last && last.spent == null) last.spent = Date.now() - game.qStart;
+  }
+
   function showQuestion() {
     const p = profile();
     const q = current();
+    closeLastAnswer();
     game.input = '';
     game.locked = false;
+    game.hint = false;
     game.qStart = Date.now();
     const animal = item(q.table);
     const inputHtml = p.settings.mc
@@ -442,12 +489,39 @@
         const at = Math.min(game.idx + 3, game.queue.length);
         game.queue.splice(at, 0, { q, retry: true });
       }
-      game.timers.push(setTimeout(nextQuestion, race ? 1500 : 2000));
+      if (race) game.timers.push(setTimeout(nextQuestion, 1500));
+      else showHint(q);
     }
   }
 
-  function highlightChoice(given, answer) {
-    app.querySelectorAll('.choice').forEach((b) => {
+  // Wrong answer: show the sum as rows of dots plus a trick, and let the child continue.
+  function showHint(q) {
+    game.hint = true;
+    const dots = [];
+    for (let r = 0; r < q.a; r++) {
+      for (let c = 0; c < q.b; c++) {
+        dots.push(`<span class="dot${c === 5 ? ' gap-c' : ''}${r === 5 ? ' gap-r' : ''}"></span>`);
+      }
+    }
+    const rows = `${q.a} ${q.a === 1 ? 'rij' : 'rijen'} van ${q.b}`;
+    const area = app.querySelector('.input-area');
+    area.innerHTML = `<div class="hint">
+      <div class="dots" style="grid-template-columns: repeat(${q.b}, auto)" role="img" aria-label="${rows} bolletjes, samen ${q.answer}">${dots.join('')}</div>
+      <p class="hint-caption" aria-hidden="true">${rows} = ${q.answer}</p>
+      <p class="hint-tip"><span aria-hidden="true">💡</span> ${L.hintFor(q.a, q.b)}</p>
+      <button class="btn primary big" data-action="continue">Verder</button>
+    </div>`;
+    area.querySelector('[data-action="continue"]').focus();
+  }
+
+  function continueAfterHint() {
+    if (!game || !game.hint) return;
+    game.hint = false;
+    nextQuestion();
+  }
+
+  function highlightChoice(given, answer, scope) {
+    (scope || app).querySelectorAll('.choice').forEach((b) => {
       const v = Number(b.dataset.value);
       b.disabled = true;
       if (v === answer) b.classList.add('is-answer');
@@ -481,40 +555,52 @@
     showHome();
   }
 
+  // Saves a finished round into a player's profile: practice time, streak, stars.
+  function applyRound(p, answers) {
+    const now = new Date();
+    const today = L.dateKey(now);
+    const goalSecs = goalMinutes(p) * 60;
+    const before = p.daily[today] || 0;
+
+    // Practice time per question (incl. feedback and hint), capped so a paused game doesn't count.
+    const secs = answers.reduce((s, a) => s + Math.min(a.spent || a.ms, 20000), 0) / 1000;
+    p.daily[today] = before + secs;
+    p.streak = L.updateStreak(p.streak, now);
+    p.rounds = (p.rounds || 0) + 1;
+    p.totalCorrect = (p.totalCorrect || 0) + answers.filter((a) => a.correct).length;
+
+    p.played = p.played || {};
+    answers.forEach((a) => { p.played[a.q.table] = true; });
+
+    // Stars never go down (R-5).
+    const newStars = [];
+    L.TABLES.forEach((t) => {
+      const s = L.computeStars(p.stats, t, p.testPassed[t], !!p.played[t]);
+      if (s > (p.stars[t] || 0)) {
+        p.stars[t] = s;
+        newStars.push({ t, s });
+      }
+    });
+    return { secs, newStars, goalReached: before < goalSecs && before + secs >= goalSecs };
+  }
+
   function finishGame() {
     if (!game || game.finished) return;
     stopTimers();
     game.finished = true;
+    closeLastAnswer();
     const p = profile();
-    const now = new Date();
-    const today = L.dateKey(now);
-
-    // Practice time: sum of answer times, capped so a paused game doesn't count.
-    const secs = game.answers.reduce((s, a) => s + Math.min(a.ms, 20000), 0) / 1000;
-    p.daily[today] = (p.daily[today] || 0) + secs;
-    p.streak = L.updateStreak(p.streak, now);
-    p.rounds = (p.rounds || 0) + 1;
-    p.totalCorrect = (p.totalCorrect || 0) + game.answers.filter((a) => a.correct).length;
 
     const total = game.mode === 'tijdrace' ? game.answers.length : ROUND_SIZE[game.mode];
-    const result = { mode: game.mode, tables: game.tables, score: game.score, total, secs, newStars: [], record: null, passed: false };
+    const result = { mode: game.mode, tables: game.tables, score: game.score, total, record: null, passed: false };
 
+    // Before the stars are counted, so a passed test gives its 3rd star right away.
     if (game.mode === 'toets' && game.tables.length === 1 && game.score >= 18) {
       result.passed = true;
       p.testPassed[game.tables[0]] = true;
     }
 
-    p.played = p.played || {};
-    game.answers.forEach((a) => { p.played[a.q.table] = true; });
-
-    // Stars never go down (R-5).
-    L.TABLES.forEach((t) => {
-      const s = L.computeStars(p.stats, t, p.testPassed[t], !!p.played[t]);
-      if (s > (p.stars[t] || 0)) {
-        p.stars[t] = s;
-        result.newStars.push({ t, s });
-      }
-    });
+    Object.assign(result, applyRound(p, game.answers));
 
     if (game.mode === 'tijdrace') {
       const label = L.selectionLabel(game.tables);
@@ -546,7 +632,7 @@
     else if (ratio >= 0.5) msg = 'Goed bezig! Nog wat oefenen en je kent ze.';
     else msg = 'Goed dat je oefent! Elke keer word je beter.';
 
-    if (r.newStars.length || r.record || r.passed) Sound.play('reward');
+    if (r.newStars.length || r.record || r.passed || r.goalReached) Sound.play('reward');
 
     const selLabel = r.tables.length === 10 ? 'alle tafels' : `tafel${r.tables.length > 1 ? 's' : ''} van ${r.tables.join(', ')}`;
     const scoreLine = r.mode === 'tijdrace'
@@ -560,6 +646,8 @@
       <div class="card result-card">
         <h1>Klaar!</h1>
         ${scoreLine}
+        ${r.goalReached ? `<p class="reward"><span class="reward-animal" aria-hidden="true">🎯</span>
+          Dagdoel gehaald! Je hebt vandaag ${goalMinutes(profile())} minuten geoefend.</p>` : ''}
         ${r.passed ? `<p class="reward">${theme().testPassed(r.tables[0])}</p>` : ''}
         ${r.newStars.length > 3
           ? `<p class="reward"><span class="reward-animal" aria-hidden="true">${r.newStars.map((n) => item(n.t).emoji).join(' ')}</span>
@@ -577,6 +665,217 @@
     game = { mode: r.mode, tables: r.tables, finished: true, timers: [] };
   }
 
+  // ---------- duel ----------
+
+  function duelPlayersHtml() {
+    const opts = data.profiles.map((p) => ({ id: p.id, avatar: p.avatar, name: p.name }))
+      .concat([{ id: 'guest', avatar: '🙂', name: 'Gast' }]);
+    return `<div class="duel-setup">${[0, 1].map((i) => `<div class="duel-slot slot-${i}">
+      <h2>Speler ${i + 1}</h2>
+      <div class="groups" role="group" aria-label="Speler ${i + 1}">
+        ${opts.map((o) => {
+          const taken = o.id !== 'guest' && duelPlayers[1 - i] === o.id;
+          return `<button class="chip player-chip" data-action="duel-player" data-slot="${i}" data-id="${o.id}" aria-pressed="${duelPlayers[i] === o.id}" ${taken ? 'disabled' : ''}>
+            <span aria-hidden="true">${o.avatar}</span> ${esc(o.name)}</button>`;
+        }).join('')}
+      </div>
+    </div>`).join('')}</div>`;
+  }
+
+  function makeDuelPlayer(id, i) {
+    const p = id === 'guest' ? null : data.profiles.find((x) => x.id === id);
+    const twoGuests = duelPlayers[0] === 'guest' && duelPlayers[1] === 'guest';
+    return {
+      profile: p,
+      name: p ? p.name : (twoGuests ? `Gast ${i + 1}` : 'Gast'),
+      avatar: p ? p.avatar : '🙂',
+      mc: p ? p.settings.mc : true,
+      idx: 0, input: '', locked: true, score: 0, answers: [], qStart: 0
+    };
+  }
+
+  // Both players get the same questions and answer at their own pace for 60 s.
+  function startDuel(tables) {
+    stopDuel();
+    game = null;
+    tables = L.normalizeTables(tables);
+    duel = {
+      tables,
+      qs: L.buildRound(tables, 100),
+      players: [makeDuelPlayer(duelPlayers[0], 0), makeDuelPlayer(duelPlayers[1], 1)],
+      timers: [],
+      finished: false
+    };
+    render(`<section class="screen duel">
+      <header class="duel-top">
+        <button class="icon-btn" data-action="quit-duel" aria-label="Duel stoppen">✕</button>
+        <span class="timer" id="duel-timer">⏱ <b>60</b></span>
+        <span class="duel-top-spacer"></span>
+      </header>
+      <div class="duel-sides">
+        ${duel.players.map((pl, i) => `<div class="side side-${i}">
+          <div class="side-head">
+            <span class="avatar" aria-hidden="true">${pl.avatar}</span>
+            <span class="side-name">${esc(pl.name)}</span>
+            <span class="side-score" id="score-${i}" aria-label="${esc(pl.name)}: 0 juist">0</span>
+          </div>
+          <div class="sign side-sign" id="sign-${i}"><span class="sign-q" id="q-${i}">…</span><span class="sign-ans" id="ans-${i}">?</span></div>
+          <p class="feedback side-fb" id="fb-${i}" role="status"></p>
+          <div class="side-input" id="input-${i}"></div>
+        </div>`).join('')}
+      </div>
+      <div class="countdown" id="countdown" aria-live="assertive"></div>
+    </section>`);
+
+    let n = 3;
+    const tick = () => {
+      const el = document.getElementById('countdown');
+      if (!duel || !el) return;
+      if (n > 0) {
+        el.textContent = n;
+        Sound.play('tap');
+        n--;
+        duel.timers.push(setTimeout(tick, 800));
+        return;
+      }
+      el.remove();
+      Sound.play('correct');
+      duel.endsAt = Date.now() + RACE_MS;
+      duel.timers.push(setTimeout(finishDuel, RACE_MS));
+      duel.tick = setInterval(updateDuelTimer, 200);
+      duel.players.forEach((_, i) => showDuelQuestion(i));
+    };
+    tick();
+  }
+
+  function showDuelQuestion(i) {
+    const pl = duel.players[i];
+    if (pl.idx >= duel.qs.length) duel.qs = duel.qs.concat(L.buildRound(duel.tables, 50));
+    const q = duel.qs[pl.idx];
+    pl.input = '';
+    pl.locked = false;
+    pl.qStart = Date.now();
+    document.getElementById(`q-${i}`).textContent = `${q.a} × ${q.b} =`;
+    const ans = document.getElementById(`ans-${i}`);
+    ans.textContent = '?';
+    ans.classList.remove('filled');
+    document.getElementById(`sign-${i}`).classList.remove('is-correct', 'is-wrong');
+    document.getElementById(`fb-${i}`).textContent = '';
+    document.getElementById(`input-${i}`).innerHTML = pl.mc
+      ? `<div class="choices">${L.multipleChoice(q).map((o) => `<button class="choice" data-duel="choose" data-side="${i}" data-value="${o}">${o}</button>`).join('')}</div>`
+      : `<div class="keypad">
+          ${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => `<button class="key" data-duel="digit" data-side="${i}" data-digit="${d}">${d}</button>`).join('')}
+          <button class="key key-erase" data-duel="erase" data-side="${i}" aria-label="Wissen">⌫</button>
+          <button class="key" data-duel="digit" data-side="${i}" data-digit="0">0</button>
+          <button class="key key-ok" data-duel="ok" data-side="${i}">OK</button>
+        </div>`;
+  }
+
+  function duelInput(el) {
+    if (!duel || duel.finished || !duel.endsAt) return;
+    const i = Number(el.dataset.side);
+    const pl = duel.players[i];
+    if (pl.locked) return;
+    const kind = el.dataset.duel;
+    if (kind === 'ok') return duelSubmit(i, pl.input);
+    if (kind === 'choose') return duelSubmit(i, el.dataset.value);
+    if (kind === 'digit' && pl.input.length < 3) pl.input = (pl.input === '0' ? '' : pl.input) + el.dataset.digit;
+    if (kind === 'erase') pl.input = pl.input.slice(0, -1);
+    const ans = document.getElementById(`ans-${i}`);
+    ans.textContent = pl.input || '?';
+    ans.classList.toggle('filled', !!pl.input);
+  }
+
+  function duelSubmit(i, value) {
+    if (value === '' || value == null) return;
+    const pl = duel.players[i];
+    const q = duel.qs[pl.idx];
+    const given = Number(value);
+    const correct = given === q.answer;
+    pl.locked = true;
+    pl.answers.push({ q, given, correct, ms: Date.now() - pl.qStart });
+
+    const ans = document.getElementById(`ans-${i}`);
+    ans.textContent = given;
+    ans.classList.add('filled');
+    highlightChoice(given, q.answer, document.getElementById(`input-${i}`));
+    const sign = document.getElementById(`sign-${i}`);
+    if (correct) {
+      pl.score++;
+      const sc = document.getElementById(`score-${i}`);
+      sc.textContent = pl.score;
+      sc.setAttribute('aria-label', `${pl.name}: ${pl.score} juist`);
+      sign.classList.add('is-correct');
+      Sound.play('correct');
+    } else {
+      sign.classList.add('is-wrong');
+      document.getElementById(`fb-${i}`).innerHTML = `<span class="fb-icon miss" aria-hidden="true">✗</span> <b>${q.a} × ${q.b} = ${q.answer}</b>`;
+      Sound.play('wrong');
+    }
+    duel.timers.push(setTimeout(() => {
+      if (!duel || duel.finished) return;
+      pl.idx++;
+      showDuelQuestion(i);
+    }, correct ? 350 : 1200));
+  }
+
+  function updateDuelTimer() {
+    const el = document.getElementById('duel-timer');
+    if (!duel || !el) return;
+    const left = Math.max(0, Math.ceil((duel.endsAt - Date.now()) / 1000));
+    el.querySelector('b').textContent = left;
+    el.classList.toggle('low', left <= 10);
+  }
+
+  function stopDuel() {
+    if (!duel) return;
+    duel.timers.forEach(clearTimeout);
+    duel.timers = [];
+    if (duel.tick) clearInterval(duel.tick);
+  }
+
+  function finishDuel() {
+    if (!duel || duel.finished) return;
+    stopDuel();
+    duel.finished = true;
+    // Answers count for players with a profile, just like a normal round.
+    duel.players.forEach((pl) => {
+      if (!pl.profile) return;
+      pl.answers.forEach((a) => {
+        pl.profile.stats[a.q.key] = L.updateFact(pl.profile.stats[a.q.key], a.correct, a.ms);
+      });
+      pl.result = applyRound(pl.profile, pl.answers);
+    });
+    persist();
+    showDuelResults();
+  }
+
+  function showDuelResults() {
+    const [a, b] = duel.players;
+    const winner = a.score === b.score ? null : (a.score > b.score ? a : b);
+    Sound.play('reward');
+    render(`<section class="screen results">
+      <div class="guide"><span class="mascot cheer" aria-hidden="true">${theme().mascot}</span>
+        <p class="bubble">${winner ? `Knap gespeeld, allebei! ${esc(winner.name)} was net iets sneller.` : 'Gelijkspel! Jullie zijn even snel.'}</p></div>
+      <div class="card result-card">
+        <h1>${winner ? `🏆 ${esc(winner.name)} wint!` : '🤝 Gelijkspel!'}</h1>
+        <div class="duel-scores">
+          ${duel.players.map((pl) => `<div class="duel-score${pl === winner ? ' is-winner' : ''}">
+            <span class="avatar big" aria-hidden="true">${pl.avatar}</span>
+            <span class="side-name">${esc(pl.name)}</span>
+            <p class="big-score"><b>${pl.score}</b> goed</p>
+            ${pl.result && pl.result.newStars.length ? `<span class="sub">⭐ ${pl.result.newStars.length} nieuwe ${pl.result.newStars.length === 1 ? 'ster' : 'sterren'}</span>` : ''}
+            ${pl.result && pl.result.goalReached ? '<span class="sub">🎯 Dagdoel gehaald!</span>' : ''}
+          </div>`).join('')}
+        </div>
+      </div>
+      <div class="row center">
+        <button class="btn primary" data-action="duel-again" autofocus>Nog eens</button>
+        <button class="btn ghost" data-action="home">${theme().backLabel}</button>
+      </div>
+    </section>`);
+  }
+
   // ---------- parent overview ----------
 
   function levelClass(stats, a, b) {
@@ -592,7 +891,8 @@
       const d = new Date(); d.setDate(d.getDate() - i);
       days.push({ label: i === 0 ? 'vandaag' : DAY_NAMES[d.getDay()], min: (p.daily[L.dateKey(d)] || 0) / 60 });
     }
-    const maxMin = Math.max(5, ...days.map((d) => d.min));
+    const goal = goalMinutes(p);
+    const maxMin = Math.max(goal, ...days.map((d) => d.min));
     const weekMin = days.reduce((s, d) => s + d.min, 0);
 
     render(`<section class="screen parent">
@@ -632,14 +932,22 @@
 
       <div class="card">
         <h2>Oefentijd per dag</h2>
-        <p class="muted">Minuten, laatste 7 dagen</p>
+        <p class="muted">Minuten, laatste 7 dagen. ✓ = dagdoel van ${goal} min gehaald.</p>
         <ul class="bars">
           ${days.map((d) => `<li class="bar-col">
-            <span class="bar-val">${d.min >= 1 ? Math.round(d.min) : d.min > 0 ? '<1' : '0'}</span>
+            <span class="bar-val">${d.min >= goal ? '✓ ' : ''}${d.min >= 1 ? Math.round(d.min) : d.min > 0 ? '<1' : '0'}</span>
             <span class="bar-track"><span class="bar" style="height:${(d.min / maxMin) * 100}%"></span></span>
             <span class="bar-label">${d.label}</span>
           </li>`).join('')}
         </ul>
+      </div>
+
+      <div class="card">
+        <h2>Dagdoel</h2>
+        <p class="muted">Na hoeveel minuten oefenen per dag de ring op het startscherm vol is.</p>
+        <div class="groups" role="group" aria-label="Dagdoel">
+          ${GOALS.map((g) => `<button class="chip" data-action="set-goal" data-goal="${g}" aria-pressed="${goal === g}">${g} minuten</button>`).join('')}
+        </div>
       </div>
     </section>`);
   }
@@ -673,6 +981,9 @@
   }
 
   app.addEventListener('pointerdown', (e) => {
+    // Duel buttons react on touch-down, so two children can tap at the same moment.
+    const d = e.target.closest('[data-duel]');
+    if (d) { e.preventDefault(); duelInput(d); return; }
     const btn = e.target.closest('[data-hold]');
     if (btn) { e.preventDefault(); startHold(btn); }
   });
@@ -720,7 +1031,20 @@
       const again = app.querySelector(`.pick[data-table="${t}"]`);
       if (again) again.focus();
     },
-    start: () => { if (pickerSel.length) startGame(pickerMode, pickerSel); },
+    start: () => {
+      if (!pickerSel.length) return;
+      if (pickerMode === 'duel') startDuel(pickerSel);
+      else startGame(pickerMode, pickerSel);
+    },
+    'duel-player': (el) => { duelPlayers[Number(el.dataset.slot)] = el.dataset.id; renderPicker(); },
+    'duel-again': () => startDuel(duel.tables),
+    'quit-duel': () => showHome(),
+    continue: () => continueAfterHint(),
+    'set-goal': (el) => {
+      profile().settings.goal = Number(el.dataset.goal);
+      persist();
+      app.querySelectorAll('[data-action="set-goal"]').forEach((b) => b.setAttribute('aria-pressed', b === el));
+    },
     digit: (el) => typeDigit(el.dataset.digit),
     erase: () => erase(),
     ok: () => submitAnswer(game && game.input),
@@ -731,6 +1055,8 @@
   };
 
   app.addEventListener('click', (e) => {
+    const d = e.target.closest('[data-duel]');
+    if (d && e.detail === 0) { duelInput(d); return; } // keyboard activation
     const el = e.target.closest('[data-action]');
     if (!el || el.disabled || !actions[el.dataset.action]) return;
     if (el.type === 'checkbox') return;
@@ -757,6 +1083,11 @@
       return;
     }
     if (!game || game.finished) return;
+    if (game.hint) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); continueAfterHint(); }
+      else if (e.key === 'Escape') quitGame();
+      return;
+    }
     if (/^[0-9]$/.test(e.key)) { typeDigit(e.key); e.preventDefault(); }
     else if (e.key === 'Backspace') { erase(); e.preventDefault(); }
     else if (e.key === 'Enter') { submitAnswer(game.input); e.preventDefault(); }

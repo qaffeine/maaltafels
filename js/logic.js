@@ -211,6 +211,26 @@
       .slice(0, n);
   }
 
+  // A trick that builds the answer from an easier, known fact.
+  // Picks the friendliest factor as the "anchor"; x is the other factor.
+  var HINT_ORDER = [1, 10, 2, 5, 9, 4, 3, 6, 8, 7];
+  function hintFor(a, b) {
+    var f = HINT_ORDER.filter(function (n) { return n === a || n === b; })[0];
+    var x = f === a ? b : a;
+    switch (f) {
+      case 1: return 'Maal 1 verandert niets: het blijft ' + x + '.';
+      case 10: return 'Maal 10: zet een 0 achter ' + x + '. Dat is ' + (x * 10) + '.';
+      case 2: return 'Maal 2 is het dubbel: ' + x + ' + ' + x + ' = ' + (2 * x) + '.';
+      case 5: return 'Maal 5 is de helft van maal 10: ' + x + ' × 10 = ' + (10 * x) + ', de helft is ' + (5 * x) + '.';
+      case 9: return 'Maal 9 is maal 10 min één keer: ' + (10 * x) + ' − ' + x + ' = ' + (9 * x) + '.';
+      case 4: return 'Maal 4 is twee keer het dubbel: ' + x + ' × 2 = ' + (2 * x) + ', en ' + (2 * x) + ' + ' + (2 * x) + ' = ' + (4 * x) + '.';
+      case 3: return 'Maal 3 is maal 2 plus één keer: ' + (2 * x) + ' + ' + x + ' = ' + (3 * x) + '.';
+      case 6: return 'Maal 6 is maal 5 plus één keer: ' + (5 * x) + ' + ' + x + ' = ' + (6 * x) + '.';
+      case 8: return 'Maal 8 is het dubbel van maal 4: ' + x + ' × 4 = ' + (4 * x) + ', en ' + (4 * x) + ' + ' + (4 * x) + ' = ' + (8 * x) + '.';
+      default: return 'Maal 7 is maal 5 plus maal 2: ' + (5 * x) + ' + ' + (2 * x) + ' = ' + (7 * x) + '.';
+    }
+  }
+
   function dateKey(d) {
     var m = d.getMonth() + 1, day = d.getDate();
     return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
@@ -231,7 +251,7 @@
     buildRound: buildRound, nextQuestion: nextQuestion, levelOf: levelOf, updateFact: updateFact,
     smartRound: smartRound, tableSummary: tableSummary, computeStars: computeStars,
     multipleChoice: multipleChoice, normalizeTables: normalizeTables, selectionLabel: selectionLabel,
-    hardest: hardest, dateKey: dateKey, updateStreak: updateStreak
+    hardest: hardest, hintFor: hintFor, dateKey: dateKey, updateStreak: updateStreak
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

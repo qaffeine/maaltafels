@@ -61,6 +61,13 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 - 20 questions from the selected tables, with no help and no feedback until the end.
 - The result shows a score and lists the mistakes. The test counts toward "mastered" status (§7).
 
+### 4.5 Duel. **M**
+- Two players on one screen, side by side. Each player is a profile or a guest.
+- Both get the same questions from the chosen tables and answer at their own pace.
+- 3-2-1 countdown, then 60 seconds; the most correct answers wins (a tie is possible).
+- Each side uses that player's own input setting (keypad or 4 choices). Buttons react on touch-down, so both can tap at the same time.
+- Answers count toward each profile's mastery, stars, streak and daily goal. Guests save nothing.
+
 ## 5. Question & answer interaction
 
 | ID | Requirement | Prio |
@@ -70,7 +77,7 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 | Q-3 | Multiple-choice mode (4 options) for beginners, which can be switched on per profile, on by default for new profiles. Distractors are plausible, e.g. neighbouring products `a×(b±1)`. | M |
 | Q-4 | Correct answer: short positive animation and sound, then the next question follows automatically (<1 s). | M |
 | Q-5 | Wrong answer: gentle feedback (no harsh "fail" sound), then the correct fact is shown for ~2 s. | M |
-| Q-6 | Optional hint: a visual array/dot grid (e.g. 3 rows of 7 dots). | C |
+| Q-6 | After a wrong answer in Practice and Smart practice: the sum as a dot grid (e.g. 7 rows of 8, grouped by 5) plus a trick built on an easier fact (e.g. "maal 9 = maal 10 min één keer"). The child continues with a **Verder** button. Not in Tijdrace, Toets or Duel. | M |
 | Q-7 | The same question never comes twice in a row. | M |
 
 ## 6. Adaptive learning
@@ -88,6 +95,7 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 | R-1 | A home screen shows each table with 0–3 stars. 1★ = practised, 2★ = ≥80% correct, 3★ = all 10 facts at mastery level ≥4 (or a passed test). | M |
 | R-2 | End-of-round summary: score, time, and new stars or a new record. | M |
 | R-3 | Daily streak counter (days in a row with at least one round played). | S |
+| R-6 | Daily goal: a ring on the home screen fills up towards the day's practice minutes (5, 10 or 15; set by a parent, default 5). Reaching it is celebrated once on the results screen. Practice time per question includes feedback and hint time, capped at 20 s. | M |
 | R-4 | Badges, e.g. "first round", "table of 7 mastered", "100 correct", "all tables". | C |
 | R-5 | Motivation stays positive: nothing is ever taken away and there are no punishing messages. | M |
 
@@ -96,7 +104,8 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 | ID | Requirement | Prio |
 |----|-------------|------|
 | O-1 | A 10×10 grid (heatmap) per profile, coloured by mastery level of each fact, with a colour legend. Tapping a cell shows that fact's attempts, % correct and average answer time. Cells also show a number or icon, so colour isn't the only signal (U-5). | M |
-| O-2 | A list of the 10 hardest facts for the child, plus the practice time per day for the last 7 days. | M |
+| O-2 | A list of the 10 hardest facts for the child, plus the practice time per day for the last 7 days (✓ on days the daily goal was reached). | M |
+| O-4 | Parents set the daily goal: 5, 10 or 15 minutes. | M |
 | O-3 | Access to this overview via a simple gate (e.g. "hold for 3 seconds" or a sum an adult can solve), so children don't wander in. | S |
 
 ## 9. UI / UX

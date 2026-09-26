@@ -189,7 +189,7 @@ button:disabled { cursor: default; }
 
 /* ---------- home ---------- */
 
-.modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.modes { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
 .mode {
   display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
   min-height: 132px; padding: 16px;
@@ -416,6 +416,98 @@ button:disabled { cursor: default; }
 .bar { width: 100%; background: var(--leaf); border-radius: 4px 4px 0 0; min-height: 0; }
 .bar-label { font-size: .9rem; color: var(--muted); }
 
+/* ---------- daily goal ---------- */
+
+.goal {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 44px; padding: 6px 14px 6px 8px;
+  border-radius: 999px; background: var(--paper);
+  font-weight: 800; font-variant-numeric: tabular-nums;
+  box-shadow: 0 3px 0 var(--grass-deep);
+}
+.goal svg { width: 30px; height: 30px; transform: rotate(-90deg); flex: none; }
+.goal-track { fill: none; stroke: var(--grass-deep); stroke-width: 5; }
+.goal-fill { fill: none; stroke: var(--leaf); stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset .6s ease; }
+.goal-done { background: var(--banana); }
+.goal-done .goal-fill { stroke: var(--leaf-dark); }
+
+/* ---------- hint after a wrong answer ---------- */
+
+.hint { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.dots {
+  display: grid; gap: 5px; padding: 14px;
+  border-radius: var(--radius-md); background: var(--paper);
+  box-shadow: 0 4px 0 var(--grass-deep);
+}
+.dot { width: 16px; height: 16px; border-radius: 50%; background: var(--leaf); }
+/* Groups of 5 make the dots easy to count. */
+.dot.gap-c { margin-left: 8px; }
+.dot.gap-r { margin-top: 8px; }
+.hint-caption { font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hint-tip {
+  max-width: 46ch; padding: 12px 18px;
+  border-radius: var(--radius-md); background: #fff3c4;
+  font-weight: 700; text-align: center;
+}
+
+/* ---------- duel ---------- */
+
+.duel-setup { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.duel-slot {
+  display: flex; flex-direction: column; gap: 10px; padding: 16px;
+  border-radius: var(--radius-lg); background: var(--paper);
+  box-shadow: inset 0 0 0 4px var(--banana);
+}
+.duel-slot.slot-1 { box-shadow: inset 0 0 0 4px var(--lagoon); }
+.player-chip:disabled { opacity: .4; }
+
+.duel { gap: 10px; min-height: calc(100vh - 40px); }
+.duel-top { display: flex; justify-content: space-between; align-items: center; font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.duel-top-spacer { width: 52px; }
+/* No pinch-zoom when two children tap at once. */
+.duel-sides { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; touch-action: none; }
+.side {
+  display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 14px;
+  border-radius: var(--radius-lg); background: rgba(255, 255, 255, .45);
+  box-shadow: inset 0 0 0 4px var(--banana);
+}
+.side-1 { box-shadow: inset 0 0 0 4px var(--lagoon); }
+.side-head { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1.2rem; }
+.side-head .avatar { font-size: 1.8rem; }
+.side-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 800; }
+.side-score {
+  min-width: 2.2em; padding: 4px 12px; border-radius: 999px;
+  background: var(--paper); text-align: center;
+  font-size: 1.5rem; font-weight: 900; font-variant-numeric: tabular-nums;
+}
+.side-sign.sign { min-width: 0; width: 100%; font-size: clamp(1.1rem, 5vw, 3.4rem); padding: 16px 10px 18px; transform-origin: 50% 50%; }
+.side-sign .sign-q { white-space: nowrap; }
+.side-fb { min-height: 1.6em; font-size: 1.1rem; justify-content: center; }
+.side-input { margin-top: auto; }
+.side .key { min-height: 58px; font-size: 1.7rem; }
+.side .choice { min-height: 76px; font-size: 2rem; }
+
+.countdown {
+  position: fixed; inset: 0; z-index: 10;
+  display: grid; place-items: center;
+  background: rgba(255, 255, 255, .6);
+  font-size: 10rem; font-weight: 900; color: var(--ink);
+}
+
+.duel-scores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
+.duel-score { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px; border-radius: var(--radius-md); background: #fff; }
+.duel-score.is-winner { background: #fff3c4; box-shadow: inset 0 0 0 4px var(--banana-dark); }
+
+@media (max-width: 600px) {
+  .duel-setup { grid-template-columns: 1fr; }
+  .duel-sides { gap: 8px; }
+  .side { padding: 8px; }
+  .side .keypad { gap: 6px; }
+  .side .key { min-height: 48px; font-size: 1.3rem; }
+  .side .choices { gap: 8px; }
+  .side .choice { min-height: 60px; font-size: 1.5rem; }
+}
+
 /* ---------- theme picker (profile form) ---------- */
 
 .themes { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -498,11 +590,23 @@ button:disabled { cursor: default; }
 
 /* ---------- responsive ---------- */
 
+/* 5 modes: one row on wide screens, 3 + 2 on tablets in portrait, 2 columns on phones. */
+@media (max-width: 900px) {
+  .modes { grid-template-columns: repeat(6, 1fr); }
+  .mode { grid-column: span 2; }
+  .mode-toets, .mode-duel { grid-column: span 3; }
+}
+
 @media (max-width: 760px) {
-  .modes { grid-template-columns: repeat(2, 1fr); }
   .zoo, .picker { grid-template-columns: repeat(3, 1fr); }
   .zoo li:last-child { grid-column: 2; }
   .picker .pick:last-child { grid-column: 2; }
+}
+
+@media (max-width: 480px) {
+  .modes { grid-template-columns: repeat(2, 1fr); }
+  .mode, .mode-toets { grid-column: span 1; }
+  .mode-duel { grid-column: span 2; min-height: 0; }
 }
 
 @media (max-width: 420px) {
@@ -529,4 +633,6 @@ button:disabled { cursor: default; }
   .sign { font-size: 4rem; padding: 16px 28px 20px; }
   .key { min-height: 56px; }
   .choice { min-height: 72px; }
+  .dot { width: 12px; height: 12px; }
+  .dots { gap: 4px; padding: 10px; }
 }

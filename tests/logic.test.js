@@ -153,3 +153,17 @@ test('hardest lists the worst facts first', () => {
   const h = L.hardest(stats, 10);
   assert.deepEqual(h.map((f) => f.key), ['7x8', '6x7']);
 });
+
+test('hint: every fact gets a trick that ends in the right answer', () => {
+  L.TABLES.forEach((a) => L.TABLES.forEach((b) => {
+    const h = L.hintFor(a, b);
+    const nums = h.match(/\d+/g).map(Number);
+    assert.equal(nums[nums.length - 1], a * b, `${a}×${b}: ${h}`);
+  }));
+});
+
+test('hint: uses the friendliest factor', () => {
+  assert.match(L.hintFor(7, 9), /^Maal 9/);
+  assert.match(L.hintFor(8, 5), /^Maal 5/);
+  assert.match(L.hintFor(7, 7), /^Maal 7 is maal 5 plus maal 2: 35 \+ 14 = 49/);
+});
