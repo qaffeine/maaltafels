@@ -230,6 +230,8 @@ button:disabled { cursor: default; }
   margin-top: -2px; padding: 0 8px; border-radius: 999px;
   background: var(--leaf); color: #fff; font-size: .75rem; font-weight: 800;
 }
+/* Always takes up its space, so tiles keep the same size with or without the label. */
+.pen-known.is-empty { visibility: hidden; }
 .pen-stars { font-size: 1.2rem; letter-spacing: 2px; color: var(--banana-dark); margin-bottom: 14px; }
 .pen.stars-0 { background-color: #eceee4; }
 .pen.stars-0 .pen-animal { filter: grayscale(1); opacity: .5; }

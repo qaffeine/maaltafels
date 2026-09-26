@@ -276,7 +276,7 @@
             <span class="pen-animal" aria-hidden="true">${item(t).emoji}</span>
             ${extra ? `<span class="pen-extra" aria-hidden="true">${extra}</span>` : ''}
             <span class="pen-name">Tafel van ${t}</span>
-            ${known ? '<span class="pen-known">al gekend</span>' : ''}
+            <span class="pen-known${known ? '' : ' is-empty'}" aria-hidden="true">al gekend</span>
             <span class="pen-stars" aria-hidden="true">${starsText(s)}</span>
           </button></li>`;
         }).join('')}
