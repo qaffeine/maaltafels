@@ -131,7 +131,7 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 |----|-------------|------|
 | T-1 | Static web app (HTML/CSS/JS), with no backend, no login and no build step. | M |
 | T-2 | Runs in current Chrome, Safari (iPad!), Firefox and Edge. | M |
-| T-3 | Works offline after the first visit (PWA, installable on the home screen). This needs HTTP hosting, so it's deferred until hosting is decided. | C |
+| T-3 | Works offline after the first visit (PWA, installable on the home screen, with a big × on green as the app icon). | M |
 | T-4 | Privacy: no data leaves the device, no analytics or trackers, no cookies (GDPR-friendly for children). | M |
 | T-5 | Loads in under 2 s on an average tablet. Total size under 1 MB, excluding sounds. | S |
 | T-6 | Question-generation and mastery logic is covered by unit tests. | S |
@@ -155,7 +155,7 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 | Division | No, out of scope |
 | Parent overview | Yes, in v1 (§8) |
 | Spoken questions | No. Sound effects only |
-| Hosting | Local `index.html` for now. Public hosting is decided later |
+| Hosting | GitHub Pages: https://qaffeine.github.io/maaltafels/, installable on iPad |
 
 ## 13. Acceptance criteria (v1 "done")
 
