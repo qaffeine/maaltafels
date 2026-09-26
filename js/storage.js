@@ -36,6 +36,7 @@
       stars: {},
       testPassed: {},
       played: {},
+      known: {},
       records: {},
       streak: null,
       daily: {},

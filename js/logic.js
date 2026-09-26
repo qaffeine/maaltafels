@@ -103,14 +103,25 @@
     return s;
   }
 
+  // Tables a parent marked as already known count as mastered, unless the
+  // child actually struggled with that fact here (real results win).
+  function effectiveLevel(stats, a, b, known) {
+    var s = stats[factKey(a, b)];
+    var lvl = (s && s.level) || 0;
+    var isKnown = known && (known.indexOf(a) !== -1 || known.indexOf(b) !== -1);
+    if (!isKnown) return lvl;
+    var struggled = s && s.attempts > 0 && lvl <= 2;
+    return struggled ? lvl : MAX_LEVEL;
+  }
+
   // Smart practice: ~60% weak (0–2), ~30% medium (3–4), ~10% mastered (5).
-  function smartRound(stats, n, rnd) {
+  function smartRound(stats, n, rnd, known) {
     rnd = rnd || Math.random;
     var buckets = { weak: [], medium: [], mastered: [] };
     TABLES.forEach(function (t) {
       TABLES.forEach(function (b) {
         if (b < t) return; // one entry per fact
-        var lvl = levelOf(stats, factKey(t, b));
+        var lvl = effectiveLevel(stats, t, b, known);
         var bucket = lvl <= 2 ? 'weak' : lvl <= 4 ? 'medium' : 'mastered';
         buckets[bucket].push([t, b]);
       });
@@ -125,17 +136,18 @@
       var prev = out[out.length - 1];
       var q = null;
       for (var k = 0; k < order.length && !q; k++) {
-        var list = buckets[order[k]].filter(function (p) {
-          var key = factKey(p[0], p[1]);
-          return !used[key] && (!prev || prev.key !== key);
+        var notPrev = buckets[order[k]].filter(function (p) {
+          return !prev || prev.key !== factKey(p[0], p[1]);
         });
+        var list = notPrev.filter(function (p) { return !used[factKey(p[0], p[1])]; });
+        // Few facts left in this bucket: repeat them rather than switch buckets.
+        if (!list.length) list = notPrev;
         if (list.length) {
           var p = list[Math.floor(rnd() * list.length)];
           var swap = rnd() < 0.5;
           q = makeQuestion(swap ? p[1] : p[0], swap ? p[0] : p[1], false);
         }
       }
-      if (!q) { used = {}; i--; continue; } // every fact used once: allow repeats
       used[q.key] = true;
       out.push(q);
     }
@@ -248,7 +260,7 @@
   var api = {
     TABLES: TABLES, GROUPS: GROUPS, FAST_MS: FAST_MS, MAX_LEVEL: MAX_LEVEL,
     factKey: factKey, factsOfTable: factsOfTable, shuffle: shuffle, makeQuestion: makeQuestion,
-    buildRound: buildRound, nextQuestion: nextQuestion, levelOf: levelOf, updateFact: updateFact,
+    buildRound: buildRound, nextQuestion: nextQuestion, levelOf: levelOf, effectiveLevel: effectiveLevel, updateFact: updateFact,
     smartRound: smartRound, tableSummary: tableSummary, computeStars: computeStars,
     multipleChoice: multipleChoice, normalizeTables: normalizeTables, selectionLabel: selectionLabel,
     hardest: hardest, hintFor: hintFor, dateKey: dateKey, updateStreak: updateStreak

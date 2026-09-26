@@ -167,3 +167,24 @@ test('hint: uses the friendliest factor', () => {
   assert.match(L.hintFor(8, 5), /^Maal 5/);
   assert.match(L.hintFor(7, 7), /^Maal 7 is maal 5 plus maal 2: 35 \+ 14 = 49/);
 });
+
+test('smart round: known tables only come back now and then', () => {
+  const known = [1, 2, 3, 4, 5, 10];
+  let fromKnownOnly = 0;
+  let total = 0;
+  for (let seed = 1; seed <= 20; seed++) {
+    L.smartRound({}, 20, seeded(seed), known).forEach((q) => {
+      total++;
+      if (known.includes(q.a) || known.includes(q.b)) fromKnownOnly++;
+    });
+  }
+  const share = fromKnownOnly / total;
+  assert.ok(share > 0.03 && share < 0.2, `share of known facts was ${share}`);
+});
+
+test('effective level: known facts count as mastered unless the child struggled', () => {
+  assert.equal(L.effectiveLevel({}, 2, 7, [2]), L.MAX_LEVEL);
+  assert.equal(L.effectiveLevel({}, 6, 7, [2]), 0);
+  const stats = { '2x7': { attempts: 3, correct: 1, totalMs: 9000, level: 1 } };
+  assert.equal(L.effectiveLevel(stats, 7, 2, [2]), 1);
+});

@@ -87,6 +87,20 @@
     return (p.streak.last === L.dateKey(today) || p.streak.last === L.dateKey(y)) ? p.streak.count : 0;
   }
 
+  // Tables a parent marked as already known (from school or earlier practice).
+  function knownTables(p) {
+    return L.TABLES.filter((t) => p.known && p.known[t]);
+  }
+
+  function todoTables(p) {
+    return L.TABLES.filter((t) => !(p.known && p.known[t]));
+  }
+
+  // Known tables show as finished; unmarking returns to the stars actually earned.
+  function displayStars(p, t) {
+    return Math.max(p.stars[t] || 0, p.known && p.known[t] ? 3 : 0);
+  }
+
   function goalMinutes(p) {
     return p.settings.goal || GOALS[0];
   }
@@ -222,14 +236,15 @@
   function guideMessage(p) {
     const th = theme();
     if (!p.rounds) return th.welcome(esc(p.name));
-    const allThree = L.TABLES.every((t) => (p.stars[t] || 0) === 3);
+    const allThree = L.TABLES.every((t) => displayStars(p, t) === 3);
     if (allThree) return th.allDone;
-    return pick([
+    const tips = knownTables(p).length ? ['Tip: kies <b>Nog te leren</b> om te oefenen wat je nog niet kent.'] : [];
+    return pick(tips.concat([
       'Tip: met <b>Slim oefenen</b> oefen je de sommen die je nog moeilijk vindt.',
       th.helpTip(esc(p.name)),
       th.tapTip,
       'Elke dag een beetje oefenen maakt je supersnel!'
-    ]);
+    ]));
   }
 
   function showHome() {
@@ -254,12 +269,14 @@
       <h2 class="section-title">${theme().worldTitle}</h2>
       <ul class="zoo">
         ${L.TABLES.map((t) => {
-          const s = p.stars[t] || 0;
+          const s = displayStars(p, t);
           const extra = theme().badge(t, s);
-          return `<li><button class="pen stars-${s}" data-action="quick" data-table="${t}" aria-label="Tafel van ${t}, ${item(t).name}, ${s} van 3 sterren. Oefenen.">
+          const known = p.known && p.known[t];
+          return `<li><button class="pen stars-${s}" data-action="quick" data-table="${t}" aria-label="Tafel van ${t}, ${item(t).name}, ${s} van 3 sterren${known ? ', al gekend' : ''}. Oefenen.">
             <span class="pen-animal" aria-hidden="true">${item(t).emoji}</span>
             ${extra ? `<span class="pen-extra" aria-hidden="true">${extra}</span>` : ''}
             <span class="pen-name">Tafel van ${t}</span>
+            ${known ? '<span class="pen-known">al gekend</span>' : ''}
             <span class="pen-stars" aria-hidden="true">${starsText(s)}</span>
           </button></li>`;
         }).join('')}
@@ -294,7 +311,9 @@
   function renderPicker() {
     const m = MODES[pickerMode];
     const sel = pickerSel;
-    const same = (g) => L.GROUPS[g].length === sel.length && L.GROUPS[g].every((t) => sel.includes(t));
+    const todo = todoTables(profile());
+    const groups = Object.assign({ todo }, L.GROUPS);
+    const same = (g) => groups[g].length === sel.length && groups[g].every((t) => sel.includes(t));
     render(`<section class="screen picker-screen">
       ${topbar(profile(), m.title)}
       <div class="guide"><span class="mascot" aria-hidden="true">${theme().mascot}</span>
@@ -303,6 +322,7 @@
           : 'Welke tafels wil je doen? Kies er één, een paar of allemaal. De sommen worden gemengd.'}</p></div>
       ${pickerMode === 'duel' ? duelPlayersHtml() : ''}
       <div class="groups" role="group" aria-label="Snel kiezen">
+        ${todo.length && todo.length < 10 ? `<button class="chip" data-action="group" data-group="todo" aria-pressed="${same('todo')}">Nog te leren (${todo.join(', ')})</button>` : ''}
         <button class="chip" data-action="group" data-group="alles" aria-pressed="${same('alles')}">Alles</button>
         <button class="chip" data-action="group" data-group="makkelijk" aria-pressed="${same('makkelijk')}">Makkelijk (1, 2, 5, 10)</button>
         <button class="chip" data-action="group" data-group="moeilijk" aria-pressed="${same('moeilijk')}">Moeilijk (6, 7, 8, 9)</button>
@@ -345,7 +365,7 @@
       game.timers.push(setTimeout(finishGame, RACE_MS));
       game.tick = setInterval(updateTimer, 200);
     } else {
-      const qs = mode === 'slim' ? L.smartRound(p.stats, ROUND_SIZE.slim) : L.buildRound(tables, ROUND_SIZE[mode]);
+      const qs = mode === 'slim' ? L.smartRound(p.stats, ROUND_SIZE.slim, undefined, knownTables(p)) : L.buildRound(tables, ROUND_SIZE[mode]);
       game.queue = qs.map((q) => ({ q, retry: false }));
     }
     showQuestion();
@@ -942,6 +962,15 @@
       </div>
 
       <div class="card">
+        <h2>Tafels die ${esc(p.name)} al kent</h2>
+        <p class="muted">Duid tafels aan die ${esc(p.name)} al kent, van school of van vroeger oefenen. Ze krijgen meteen 3 sterren, en bij Slim oefenen komen ze alleen nog af en toe terug om te herhalen. Zo gaat de oefentijd naar wat nog niet gekend is.</p>
+        <div class="known-picker" role="group" aria-label="Al gekende tafels">
+          ${L.TABLES.map((t) => `<button class="chip known-chip" data-action="toggle-known" data-table="${t}" aria-pressed="${!!(p.known && p.known[t])}">
+            <span aria-hidden="true">${item(t).emoji}</span> ${t}</button>`).join('')}
+        </div>
+      </div>
+
+      <div class="card">
         <h2>Dagdoel</h2>
         <p class="muted">Na hoeveel minuten oefenen per dag de ring op het startscherm vol is.</p>
         <div class="groups" role="group" aria-label="Dagdoel">
@@ -1022,7 +1051,11 @@
       else startGame(m, L.TABLES);
     },
     quick: (el) => showPicker('oefenen', [Number(el.dataset.table)]),
-    group: (el) => { pickerSel = L.GROUPS[el.dataset.group].slice(); renderPicker(); },
+    group: (el) => {
+      const g = el.dataset.group;
+      pickerSel = g === 'todo' ? todoTables(profile()) : L.GROUPS[g].slice();
+      renderPicker();
+    },
     'toggle-table': (el) => {
       const t = Number(el.dataset.table);
       pickerSel = pickerSel.includes(t) ? pickerSel.filter((x) => x !== t) : L.normalizeTables(pickerSel.concat(t));
@@ -1039,6 +1072,18 @@
     'duel-again': () => startDuel(duel.tables),
     'quit-duel': () => showHome(),
     continue: () => continueAfterHint(),
+    'toggle-known': (el) => {
+      const p = profile();
+      const t = Number(el.dataset.table);
+      p.known = p.known || {};
+      if (p.known[t]) delete p.known[t];
+      else p.known[t] = true;
+      // Next time a table is picked, start with what's still to learn.
+      const todo = todoTables(p);
+      if (todo.length) p.lastSelection = todo;
+      persist();
+      el.setAttribute('aria-pressed', !!p.known[t]);
+    },
     'set-goal': (el) => {
       profile().settings.goal = Number(el.dataset.goal);
       persist();

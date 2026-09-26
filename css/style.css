@@ -209,6 +209,7 @@ button:disabled { cursor: default; }
 
 /* The zoo: one enclosure per table, a little fenced paddock. */
 .zoo { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+.zoo li { display: flex; } /* equal-height tiles per row */
 .pen {
   position: relative; width: 100%;
   display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -225,6 +226,10 @@ button:disabled { cursor: default; }
 .pen-animal { display: block; font-size: 3rem; line-height: 1.1; }
 .pen-extra { position: absolute; top: 8px; right: 10px; font-size: 1.4rem; }
 .pen-name { font-weight: 800; font-size: 1rem; }
+.pen-known {
+  margin-top: -2px; padding: 0 8px; border-radius: 999px;
+  background: var(--leaf); color: #fff; font-size: .75rem; font-weight: 800;
+}
 .pen-stars { font-size: 1.2rem; letter-spacing: 2px; color: var(--banana-dark); margin-bottom: 14px; }
 .pen.stars-0 { background-color: #eceee4; }
 .pen.stars-0 .pen-animal { filter: grayscale(1); opacity: .5; }
@@ -468,6 +473,11 @@ body[data-theme="obby"] {
 }
 [data-theme="obby"] .sign-ans { border-radius: 4px; background: rgba(0, 0, 0, .22); color: #ffd84d; }
 [data-theme="obby"] .sign-ans.filled { color: #fff; }
+
+.known-picker { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.known-chip { justify-content: center; font-size: 1.1rem; }
+.known-chip[aria-pressed="true"]::after { content: " ✓"; }
+@media (max-width: 420px) { .known-picker { grid-template-columns: repeat(3, 1fr); } }
 
 /* ---------- daily goal ---------- */
 

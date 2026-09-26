@@ -88,6 +88,7 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 | A-1 | For each profile and each fact (`a×b`, treated as the same fact as `b×a`) the game records: attempts, correct answers, and the last answer time. | M |
 | A-2 | Each fact has a mastery level 0–5 (Leitner-style). Correct and fast (<3 s) → +1. Correct but slow → unchanged. Wrong → back to 1. | S |
 | A-3 | Smart practice mixes the questions: about 60% weak facts (level 0–2), 30% medium, 10% mastered (for review). | S |
+| A-4 | Parents can mark tables the child already knows (from school or earlier practice). Known tables show 3 stars and an "al gekend" label; unmarking returns to the stars actually earned. Smart practice treats their facts as mastered (only occasional review), unless the child actually got them wrong here. The table picker offers "Nog te leren" (all unmarked tables) and preselects it. | M |
 
 ## 7. Progress & motivation
 
