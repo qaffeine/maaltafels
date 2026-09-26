@@ -188,3 +188,94 @@ test('effective level: known facts count as mastered unless the child struggled'
   const stats = { '2x7': { attempts: 3, correct: 1, totalMs: 9000, level: 1 } };
   assert.equal(L.effectiveLevel(stats, 7, 2, [2]), 1);
 });
+
+// ---------- edge cases ----------
+
+test('buildRound: every question is a valid fact from the selection', () => {
+  for (let s = 1; s <= 30; s++) {
+    const tables = L.TABLES.filter((t) => (t * s) % 3 !== 0).slice(0, 1 + (s % 10)) || [1];
+    const sel = tables.length ? tables : [1];
+    L.buildRound(sel, 20, seeded(s)).forEach((q) => {
+      assert.ok(sel.includes(q.a) || sel.includes(q.b));
+      assert.ok(q.a >= 1 && q.a <= 10 && q.b >= 1 && q.b <= 10);
+      assert.equal(q.answer, q.a * q.b);
+      assert.equal(q.key, L.factKey(q.a, q.b));
+    });
+  }
+});
+
+test('buildRound: ignores invalid and duplicate tables', () => {
+  const round = L.buildRound([7, 7, 0, 11, 'x'], 10, seeded(3));
+  round.forEach((q) => assert.equal(q.table, 7));
+});
+
+test('single table round covers all 10 multipliers', () => {
+  const round = L.buildRound([6], 10, seeded(8));
+  assert.deepEqual(round.map((q) => q.b).sort((x, y) => x - y), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+});
+
+test('multiple choice: options stay within 1..100 for all facts', () => {
+  for (let s = 1; s <= 200; s++) {
+    L.TABLES.forEach((a) => L.TABLES.forEach((b) => {
+      L.multipleChoice(L.makeQuestion(a, b, false), seeded(s * 100 + a * 10 + b)).forEach((o) => {
+        assert.ok(Number.isInteger(o) && o >= 1 && o <= 100, `${a}×${b}: ${o}`);
+      });
+    }));
+  }
+});
+
+test('stars: 2 stars needs at least 10 attempts', () => {
+  const stats = {};
+  let s = null;
+  for (let i = 0; i < 9; i++) s = L.updateFact(s, true, 5000);
+  stats[L.factKey(4, 3)] = s;
+  assert.equal(L.computeStars(stats, 4, false, true), 1);
+  stats[L.factKey(4, 3)] = L.updateFact(s, true, 5000);
+  assert.equal(L.computeStars(stats, 4, false, true), 2);
+});
+
+test('stars: below 80% correct stays at 1 star', () => {
+  let s = null;
+  for (let i = 0; i < 7; i++) s = L.updateFact(s, true, 5000);
+  for (let i = 0; i < 3; i++) s = L.updateFact(s, false, 5000);
+  assert.equal(L.computeStars({ '4x5': s }, 4, false, true), 1);
+});
+
+test('streak: crosses month and year boundaries', () => {
+  let s = L.updateStreak(null, new Date(2026, 0, 31));
+  s = L.updateStreak(s, new Date(2026, 1, 1));
+  assert.equal(s.count, 2);
+  let y = L.updateStreak(null, new Date(2026, 11, 31));
+  y = L.updateStreak(y, new Date(2027, 0, 1));
+  assert.equal(y.count, 2);
+});
+
+test('dateKey is zero-padded local date', () => {
+  assert.equal(L.dateKey(new Date(2026, 2, 5)), '2026-03-05');
+});
+
+test('hardest: slow but correct facts are listed, fast correct ones are not', () => {
+  const stats = {
+    '6x8': { attempts: 3, correct: 3, totalMs: 15000, level: 2 },
+    '2x3': { attempts: 3, correct: 3, totalMs: 3000, level: 3 }
+  };
+  assert.deepEqual(L.hardest(stats, 10).map((f) => f.key), ['6x8']);
+});
+
+test('updateFact never exceeds max level or goes below 1 after an attempt', () => {
+  let s = null;
+  for (let i = 0; i < 50; i++) {
+    s = L.updateFact(s, i % 7 !== 0, (i % 3) * 2000);
+    assert.ok(s.level >= 1 && s.level <= L.MAX_LEVEL);
+  }
+});
+
+test('smart round with fully mastered stats still returns 20 questions', () => {
+  const stats = {};
+  L.TABLES.forEach((a) => L.TABLES.forEach((b) => {
+    stats[L.factKey(a, b)] = { attempts: 5, correct: 5, totalMs: 2000, level: 5 };
+  }));
+  const r = L.smartRound(stats, 20, seeded(4));
+  assert.equal(r.length, 20);
+  assert.equal(L.smartRound(stats, 20, seeded(4), L.TABLES).length, 20);
+});

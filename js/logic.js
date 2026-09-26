@@ -187,10 +187,11 @@
     shuffle(cands, rnd).forEach(function (c) {
       if (opts.length < 4 && c > 0 && c <= 100 && opts.indexOf(c) === -1) opts.push(c);
     });
-    var extra = 1;
-    while (opts.length < 4) {
-      if (opts.indexOf(q.answer + extra) === -1) opts.push(q.answer + extra);
-      extra++;
+    // Still short (only near 1 or 100): fill with close numbers inside 1..100.
+    for (var extra = 1; opts.length < 4; extra++) {
+      [q.answer + extra, q.answer - extra].forEach(function (c) {
+        if (opts.length < 4 && c >= 1 && c <= 100 && opts.indexOf(c) === -1) opts.push(c);
+      });
     }
     return shuffle(opts, rnd);
   }

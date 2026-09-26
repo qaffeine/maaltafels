@@ -3,7 +3,7 @@
 // Offline or very slow network: use the saved copy.
 'use strict';
 
-const CACHE = 'maaltafels-v1';
+const CACHE = 'maaltafels-v2';
 const FILES = [
   './',
   './index.html',
@@ -41,7 +41,10 @@ self.addEventListener('fetch', (event) => {
 async function networkFirst(req) {
   const cache = await caches.open(CACHE);
   try {
-    const res = await withTimeout(fetch(req), NETWORK_TIMEOUT_MS);
+    // no-cache: always ask the server for the newest version (unchanged files cost a tiny 304).
+    // Page loads (mode 'navigate') can't be copied with options, so rebuild them from the URL.
+    const fresh = req.mode === 'navigate' ? new Request(req.url, { cache: 'no-cache' }) : new Request(req, { cache: 'no-cache' });
+    const res = await withTimeout(fetch(fresh), NETWORK_TIMEOUT_MS);
     if (res.ok) cache.put(req, res.clone());
     return res;
   } catch (e) {

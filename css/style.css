@@ -529,14 +529,14 @@ body[data-theme="obby"] {
 .duel { gap: 10px; min-height: calc(100vh - 40px); }
 .duel-top { display: flex; align-items: center; }
 /* No pinch-zoom when two children tap at once. */
-.duel-sides { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; touch-action: none; }
+.duel-sides { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; touch-action: none; }
 .side {
   display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 14px;
   border-radius: var(--radius-lg); background: rgba(255, 255, 255, .45);
   box-shadow: inset 0 0 0 4px var(--banana);
 }
 .side-1 { box-shadow: inset 0 0 0 4px var(--lagoon); }
-.side-head { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1.2rem; }
+.side-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-weight: 800; font-size: 1.2rem; }
 .side-head .avatar { font-size: 1.8rem; }
 .side-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 800; }
 .side-score {
@@ -594,12 +594,18 @@ body[data-theme="obby"] {
   .duel.facing .side-1 { top: 75vh; top: 75dvh; transform: translate(-50%, -50%); }
 }
 /* Sizes follow the player's own field, not the screen. */
-.duel.facing .side-head { font-size: clamp(.95rem, 3.6cqw, 1.3rem); }
+.duel.facing .side { padding: clamp(8px, 3cqh, 14px); gap: clamp(4px, 2cqh, 10px); }
+.duel.facing .side-head { font-size: clamp(.95rem, 3.6cqw, 1.3rem); flex-wrap: nowrap; }
+.duel.facing .side-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-theme="city"] .duel.facing .sign { border-width: clamp(6px, 2.4cqh, 14px); }
 .duel.facing .side-sign.sign { font-size: clamp(1.4rem, 8cqw, 3.6rem); padding: 2cqh 10px 2.4cqh; }
 .duel.facing .side-fb { min-height: 1.4em; font-size: clamp(.9rem, 3cqw, 1.15rem); }
+.duel.facing .side-fb .fb-icon { width: clamp(24px, 8cqh, 40px); height: clamp(24px, 8cqh, 40px); font-size: clamp(.9rem, 4cqh, 1.3rem); }
 .duel.facing .side .choices { gap: clamp(6px, 2cqh, 14px); }
-.duel.facing .side .choice { min-height: clamp(44px, 17cqh, 88px); font-size: clamp(1.3rem, 6cqw, 2.4rem); }
-.duel.facing .duel-wait { min-height: clamp(96px, 37cqh, 190px); }
+.duel.facing .side .choice { min-height: clamp(38px, 16cqh, 88px); font-size: clamp(1.3rem, 6cqw, 2.4rem); }
+/* Same height as the answer buttons it replaces. */
+.duel.facing .duel-wait { min-height: calc(2 * clamp(38px, 16cqh, 88px) + clamp(6px, 2cqh, 14px)); gap: 0; font-size: clamp(1rem, 4cqw, 1.5rem); }
+.duel.facing .duel-wait-icon { font-size: clamp(1.4rem, 9cqh, 2.4rem); }
 .duel.facing .side-countdown { font-size: clamp(3rem, 30cqh, 8rem); }
 
 .duel-scores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
