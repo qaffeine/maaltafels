@@ -3,7 +3,6 @@
   'use strict';
 
   const L = window.Logic;
-  const A = L.ANIMALS;
   const AVATARS = ['🐵', '🐼', '🐨', '🐯', '🦄', '🐶', '🐱', '🐻', '🐹', '🦉', '🐬', '🦖'];
   const MODES = {
     oefenen: { title: 'Oefenen', icon: '🎯', desc: '10 sommen, zonder tijd', picker: true },
@@ -37,7 +36,20 @@
     Store.save(data);
   }
 
+  // The world of the current player (zoo or city).
+  function theme() {
+    const p = profile();
+    return Themes.get(p && p.theme);
+  }
+
+  function item(t) {
+    return theme().items[t];
+  }
+
   function render(html) {
+    const th = theme();
+    document.body.dataset.theme = th.id;
+    document.title = th.title;
     app.innerHTML = html;
     const f = app.querySelector('[autofocus]');
     if (f) f.focus();
@@ -73,7 +85,7 @@
   function topbar(p, title) {
     if (title) {
       return `<header class="topbar">
-        <button class="btn ghost" data-action="home">‹ Naar de zoo</button>
+        <button class="btn ghost" data-action="home">‹ ${theme().backLabel}</button>
         <h1 class="topbar-title">${esc(title)}</h1>
       </header>`;
     }
@@ -95,7 +107,7 @@
     game = null;
     if (!data.profiles.length) return showProfileForm(null);
     render(`<section class="screen profiles">
-      <div class="brand"><span class="mascot" aria-hidden="true">🐵</span><h1>Maaltafel-zoo</h1></div>
+      <div class="brand"><span class="mascot" aria-hidden="true">${theme().mascot}</span><h1>Maaltafels</h1></div>
       <p class="bubble">Hoi! Wie gaat er spelen?</p>
       <ul class="profile-list">
         ${data.profiles.map((p) => `<li>
@@ -113,7 +125,7 @@
     const p = id ? data.profiles.find((x) => x.id === id) : null;
     const chosen = p ? p.avatar : AVATARS[data.profiles.length % AVATARS.length];
     render(`<section class="screen profiles">
-      <div class="brand"><span class="mascot" aria-hidden="true">🐵</span><h1>${p ? 'Speler wijzigen' : 'Nieuwe speler'}</h1></div>
+      <div class="brand"><span class="mascot" aria-hidden="true">${theme().mascot}</span><h1>${p ? 'Speler wijzigen' : 'Nieuwe speler'}</h1></div>
       <form class="card form" data-form="profile" data-id="${p ? p.id : ''}">
         <label class="field">Hoe heet je?
           <input name="name" maxlength="20" required autocomplete="off" value="${p ? esc(p.name) : ''}" autofocus>
@@ -122,6 +134,14 @@
           <legend>Kies je dier</legend>
           ${AVATARS.map((a) => `<label class="avatar-opt">
             <input type="radio" name="avatar" value="${a}" ${a === chosen ? 'checked' : ''}><span>${a}</span>
+          </label>`).join('')}
+        </fieldset>
+        <fieldset class="themes">
+          <legend>Kies je wereld</legend>
+          ${Themes.list.map((th) => `<label class="theme-opt">
+            <input type="radio" name="theme" value="${th.id}" ${(p ? Themes.get(p.theme).id : 'zoo') === th.id ? 'checked' : ''}>
+            <span><span class="theme-icon" aria-hidden="true">${th.icon}</span>${th.label}
+              <span class="theme-preview" aria-hidden="true">${[2, 5, 7].map((t) => th.items[t].emoji).join('')}</span></span>
           </label>`).join('')}
         </fieldset>
         <div class="row">
@@ -151,13 +171,15 @@
   function saveProfileForm(form) {
     const name = form.elements.name.value.trim();
     const avatar = form.elements.avatar.value || AVATARS[0];
+    const themeId = form.elements.theme.value || 'zoo';
     if (!name) { form.elements.name.focus(); return; }
     let p = data.profiles.find((x) => x.id === form.dataset.id);
     if (p) {
       p.name = name;
       p.avatar = avatar;
+      p.theme = themeId;
     } else {
-      p = Store.newProfile(name, avatar);
+      p = Store.newProfile(name, avatar, themeId);
       data.profiles.push(p);
     }
     data.currentId = p.id;
@@ -165,16 +187,17 @@
     showHome();
   }
 
-  // ---------- home / zoo ----------
+  // ---------- home (zoo or city) ----------
 
   function guideMessage(p) {
-    if (!p.rounds) return `Welkom in de zoo, ${esc(p.name)}! De dieren slapen nog. Speel een spel om ze wakker te maken.`;
+    const th = theme();
+    if (!p.rounds) return th.welcome(esc(p.name));
     const allThree = L.TABLES.every((t) => (p.stars[t] || 0) === 3);
-    if (allThree) return 'Wauw, alle dieren hebben een kroon! Je bent een echte maaltafel-kampioen.';
+    if (allThree) return th.allDone;
     return pick([
       'Tip: met <b>Slim oefenen</b> oefen je de sommen die je nog moeilijk vindt.',
-      `Goed bezig, ${esc(p.name)}! Welk dier help je vandaag?`,
-      'Tik op een dier om zijn tafel te oefenen.',
+      th.helpTip(esc(p.name)),
+      th.tapTip,
       'Elke dag een beetje oefenen maakt je supersnel!'
     ]);
   }
@@ -186,7 +209,7 @@
     Sound.enabled = p.settings.sound;
     render(`<section class="screen home">
       ${topbar(p)}
-      <div class="guide"><span class="mascot" aria-hidden="true">🐵</span><p class="bubble">${guideMessage(p)}</p></div>
+      <div class="guide"><span class="mascot" aria-hidden="true">${theme().mascot}</span><p class="bubble">${guideMessage(p)}</p></div>
 
       <div class="modes">
         ${Object.keys(MODES).map((m) => `<button class="mode mode-${m}" data-action="mode" data-mode="${m}">
@@ -196,13 +219,13 @@
         </button>`).join('')}
       </div>
 
-      <h2 class="section-title">Jouw zoo</h2>
+      <h2 class="section-title">${theme().worldTitle}</h2>
       <ul class="zoo">
         ${L.TABLES.map((t) => {
           const s = p.stars[t] || 0;
-          const extra = s === 3 ? '👑' : s === 2 ? A[t].food : s === 0 ? '💤' : '';
-          return `<li><button class="pen stars-${s}" data-action="quick" data-table="${t}" aria-label="Tafel van ${t}, ${A[t].name}, ${s} van 3 sterren. Oefenen.">
-            <span class="pen-animal" aria-hidden="true">${A[t].emoji}</span>
+          const extra = theme().badge(t, s);
+          return `<li><button class="pen stars-${s}" data-action="quick" data-table="${t}" aria-label="Tafel van ${t}, ${item(t).name}, ${s} van 3 sterren. Oefenen.">
+            <span class="pen-animal" aria-hidden="true">${item(t).emoji}</span>
             ${extra ? `<span class="pen-extra" aria-hidden="true">${extra}</span>` : ''}
             <span class="pen-name">Tafel van ${t}</span>
             <span class="pen-stars" aria-hidden="true">${starsText(s)}</span>
@@ -238,7 +261,7 @@
     const same = (g) => L.GROUPS[g].length === sel.length && L.GROUPS[g].every((t) => sel.includes(t));
     render(`<section class="screen picker-screen">
       ${topbar(profile(), m.title)}
-      <div class="guide"><span class="mascot" aria-hidden="true">🐵</span>
+      <div class="guide"><span class="mascot" aria-hidden="true">${theme().mascot}</span>
         <p class="bubble">Welke tafels wil je doen? Kies er één, een paar of allemaal. De sommen worden gemengd.</p></div>
       <div class="groups" role="group" aria-label="Snel kiezen">
         <button class="chip" data-action="group" data-group="alles" aria-pressed="${same('alles')}">Alles</button>
@@ -247,7 +270,7 @@
       </div>
       <div class="picker" role="group" aria-label="Tafels">
         ${L.TABLES.map((t) => `<button class="pick" data-action="toggle-table" data-table="${t}" aria-pressed="${sel.includes(t)}">
-          <span class="pick-animal" aria-hidden="true">${A[t].emoji}</span>
+          <span class="pick-animal" aria-hidden="true">${item(t).emoji}</span>
           <span class="pick-num">${t}</span>
           <span class="pick-check" aria-hidden="true">${sel.includes(t) ? '✓' : ''}</span>
         </button>`).join('')}
@@ -315,7 +338,7 @@
     game.input = '';
     game.locked = false;
     game.qStart = Date.now();
-    const animal = A[q.table];
+    const animal = item(q.table);
     const inputHtml = p.settings.mc
       ? `<div class="choices">${L.multipleChoice(q).map((o) => `<button class="choice" data-action="choose" data-value="${o}">${o}</button>`).join('')}</div>`
       : `<div class="keypad">
@@ -327,7 +350,7 @@
 
     render(`<section class="screen game mode-${game.mode}">
       <header class="game-top">
-        <button class="icon-btn" data-action="quit" aria-label="Stoppen en terug naar de zoo">✕</button>
+        <button class="icon-btn" data-action="quit" aria-label="Stoppen en terug naar de ${theme().world}">✕</button>
         ${progressHtml()}
       </header>
       <div class="stage">
@@ -504,6 +527,9 @@
       }
     }
 
+    // A passed test already announces the finished table; don't repeat it.
+    if (result.passed) result.newStars = result.newStars.filter((n) => n.t !== game.tables[0]);
+
     result.mistakes = game.answers.filter((a) => !a.correct);
     persist();
     showResults(result);
@@ -530,22 +556,22 @@
          <p class="sub">Tijd: ${formatDuration(r.secs)}${r.mode !== 'slim' ? ' · ' + esc(selLabel) : ''}</p>`;
 
     render(`<section class="screen results">
-      <div class="guide"><span class="mascot cheer" aria-hidden="true">🐵</span><p class="bubble">${msg}</p></div>
+      <div class="guide"><span class="mascot cheer" aria-hidden="true">${theme().mascot}</span><p class="bubble">${msg}</p></div>
       <div class="card result-card">
         <h1>Klaar!</h1>
         ${scoreLine}
-        ${r.passed ? `<p class="reward">👑 Toets geslaagd! De ${A[r.tables[0]].name} krijgt een kroon.</p>` : ''}
+        ${r.passed ? `<p class="reward">${theme().testPassed(r.tables[0])}</p>` : ''}
         ${r.newStars.length > 3
-          ? `<p class="reward"><span class="reward-animal" aria-hidden="true">${r.newStars.map((n) => A[n.t].emoji).join(' ')}</span>
-              ${r.newStars.length} dieren kregen een nieuwe ster!</p>`
-          : r.newStars.map((n) => `<p class="reward"><span class="reward-animal" aria-hidden="true">${A[n.t].emoji}</span>
-              De ${A[n.t].name} van tafel ${n.t} krijgt ster ${n.s}! <span class="stars" aria-label="${n.s} van 3 sterren">${starsText(n.s)}</span></p>`).join('')}
+          ? `<p class="reward"><span class="reward-animal" aria-hidden="true">${r.newStars.map((n) => item(n.t).emoji).join(' ')}</span>
+              ${theme().manyStars(r.newStars.length)}</p>`
+          : r.newStars.map((n) => `<p class="reward"><span class="reward-animal" aria-hidden="true">${item(n.t).emoji}</span>
+              ${theme().starMsg(n.t, n.s)} <span class="stars" aria-label="${n.s} van 3 sterren">${starsText(n.s)}</span></p>`).join('')}
         ${r.mode === 'toets' && r.mistakes.length ? `<h2>Deze waren nog niet juist</h2>
           <ul class="mistakes">${r.mistakes.map((a) => `<li><b>${a.q.a} × ${a.q.b} = ${a.q.answer}</b> <span class="muted">(jij: ${a.given})</span></li>`).join('')}</ul>` : ''}
       </div>
       <div class="row center">
         <button class="btn primary" data-action="again" autofocus>Nog eens</button>
-        <button class="btn ghost" data-action="home">Naar de zoo</button>
+        <button class="btn ghost" data-action="home">${theme().backLabel}</button>
       </div>
     </section>`);
     game = { mode: r.mode, tables: r.tables, finished: true, timers: [] };

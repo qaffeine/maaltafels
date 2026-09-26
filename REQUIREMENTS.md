@@ -101,7 +101,15 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 
 ## 9. UI / UX
 
-**Theme: animals / zoo.**
+**Themes:** each player picks a world on their profile, and can change it later. The game logic is the same in every world.
+
+**City theme (Stad).**
+- A builder guide (👷) leads the child through the game.
+- Each table is a building: 1 🏠 huisje, 2 🏪 winkel, 3 🏫 school, 4 🏥 ziekenhuis, 5 🚉 station, 6 🏛️ museum, 7 🏟️ stadion, 8 🎡 pretpark, 9 🏰 kasteel, 10 🗼 toren.
+- Stars make the building rise: 0★ construction site 🚧, 1★ foundation 🏗️, 2★ walls 🧱, 3★ finished 🎉.
+- The question is shown on a yellow construction board with hazard stripes.
+
+**Zoo theme (default).**
 - A friendly guide mascot (e.g. a monkey 🐵) leads the child through the game. It cheers on correct answers and encourages on mistakes.
 - Each table has its own animal and habitat on a zoo map, e.g. 1 🐭 mouse, 2 🐰 rabbit, 3 🐸 frog, 4 🐢 turtle, 5 🦊 fox, 6 🐧 penguin, 7 🦒 giraffe, 8 🐙 octopus, 9 🦁 lion, 10 🐘 elephant. The final list can still change.
 - Stars on a table make its animal happier and its habitat richer: 1★ the animal appears, 2★ it gets food or toys, 3★ it gets a crown or party.
@@ -142,7 +150,7 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 |-------|----------|
 | Language | Dutch only |
 | Age | 6–10, mixed. Multiple choice is in v1 |
-| Theme | Animals / zoo, with a monkey guide |
+| Theme | Chosen per player: zoo (monkey guide, default) or city (builder guide) |
 | Mixed tables | Yes. Any combination of tables, shuffled together (§4.0) |
 | Division | No, out of scope |
 | Parent overview | Yes, in v1 (§8) |

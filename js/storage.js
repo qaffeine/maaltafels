@@ -24,11 +24,12 @@
     } catch (e) { /* keep in memory only */ }
   }
 
-  function newProfile(name, avatar) {
+  function newProfile(name, avatar, theme) {
     return {
       id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       name: name,
       avatar: avatar,
+      theme: theme || 'zoo',
       settings: { sound: true, mc: true },
       lastSelection: [2],
       stats: {},

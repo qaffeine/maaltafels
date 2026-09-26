@@ -222,7 +222,7 @@ button:disabled { cursor: default; }
   transition: transform .08s ease;
 }
 .pen:active { transform: translateY(3px); }
-.pen-animal { font-size: 3rem; line-height: 1.1; }
+.pen-animal { display: block; font-size: 3rem; line-height: 1.1; }
 .pen-extra { position: absolute; top: 8px; right: 10px; font-size: 1.4rem; }
 .pen-name { font-weight: 800; font-size: 1rem; }
 .pen-stars { font-size: 1.2rem; letter-spacing: 2px; color: var(--banana-dark); margin-bottom: 14px; }
@@ -415,6 +415,67 @@ button:disabled { cursor: default; }
 .bar-track { flex: 1; width: 100%; max-width: 44px; display: flex; align-items: flex-end; border-bottom: 2px solid var(--grass-deep); }
 .bar { width: 100%; background: var(--leaf); border-radius: 4px 4px 0 0; min-height: 0; }
 .bar-label { font-size: .9rem; color: var(--muted); }
+
+/* ---------- theme picker (profile form) ---------- */
+
+.themes { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.themes legend { font-weight: 800; font-size: 1.15rem; margin-bottom: 10px; padding: 0; }
+.theme-opt input { position: absolute; opacity: 0; }
+.theme-opt > span {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 14px 10px; border-radius: var(--radius-md);
+  background: #fff; box-shadow: inset 0 0 0 3px var(--grass-deep);
+  font-weight: 800; font-size: 1.15rem; cursor: pointer;
+}
+.theme-icon { font-size: 2.4rem; line-height: 1.1; }
+.theme-preview { font-size: 1.3rem; letter-spacing: 4px; }
+.theme-opt input:checked + span { background: var(--banana); box-shadow: inset 0 0 0 4px var(--wood-dark); }
+.theme-opt input:focus-visible + span { outline: 4px solid var(--lagoon); outline-offset: 3px; }
+
+/* ---------- city theme ---------- */
+/* Sky instead of grass, roads instead of fences, a yellow construction board
+   instead of the wooden sign, and buildings that rise with each star. */
+
+[data-theme="city"] {
+  --grass: #deebf5;
+  --grass-deep: #bdd0e0;
+  --ink: #1b2d3f;
+  --muted: #4a5d70;
+  --wood-dark: #1b2d3f;
+  --asphalt: #56606b;
+  --hazard: #ffcd2e;
+}
+
+[data-theme="city"] .pen {
+  background:
+    repeating-linear-gradient(90deg, #fff 0 12px, transparent 12px 24px) 0 calc(100% - 6px) / 100% 2px no-repeat,
+    linear-gradient(var(--asphalt), var(--asphalt)) bottom / 100% 14px no-repeat,
+    #f5f8fb;
+}
+[data-theme="city"] .pen.stars-0 { background-color: #e7ecf1; }
+[data-theme="city"] .pen.stars-3 { background-color: #fff3c4; }
+[data-theme="city"] .pen.stars-0 .pen-animal { opacity: .3; }
+/* The building rises: foundation (1★), walls (2★), finished (3★). */
+[data-theme="city"] .pen.stars-1 .pen-animal { clip-path: inset(58% 0 0 0); }
+[data-theme="city"] .pen.stars-2 .pen-animal { clip-path: inset(28% 0 0 0); }
+
+[data-theme="city"] .sign-wrap::before,
+[data-theme="city"] .sign-wrap::after {
+  background: repeating-linear-gradient(180deg, #8c98a5 0 5px, #6b7785 5px 10px);
+}
+[data-theme="city"] .sign {
+  border: 14px solid transparent;
+  border-image: repeating-linear-gradient(45deg, var(--ink) 0 14px, var(--hazard) 14px 28px) 14;
+  border-radius: 0;
+  background: var(--hazard);
+  color: var(--ink);
+  text-shadow: none;
+  box-shadow: 0 8px 0 var(--asphalt);
+}
+[data-theme="city"] .sign-ans { background: rgba(27, 45, 63, .12); color: #7a5b00; }
+[data-theme="city"] .sign-ans.filled { color: var(--ink); }
+[data-theme="city"] .sign.is-correct .sign-ans,
+[data-theme="city"] .sign.is-wrong .sign-ans { color: #fff; }
 
 /* ---------- motion ---------- */
 

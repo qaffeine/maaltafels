@@ -19,5 +19,6 @@ node --test tests/logic.test.js
 - `css/style.css`: the look
 - `js/logic.js`: questions, mastery levels, stars (no DOM; unit-tested)
 - `js/storage.js`: saving profiles in the browser (localStorage)
+- `js/themes.js`: the worlds (zoo, city): names, emoji and texts
 - `js/sound.js`: sound effects generated in the browser
 - `js/app.js`: screens and game flow

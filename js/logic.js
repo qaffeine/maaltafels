@@ -7,19 +7,6 @@
   var FAST_MS = 3000;
   var MAX_LEVEL = 5;
 
-  var ANIMALS = {
-    1: { emoji: '🐭', name: 'muis', food: '🧀' },
-    2: { emoji: '🐰', name: 'konijn', food: '🥕' },
-    3: { emoji: '🐸', name: 'kikker', food: '🪰' },
-    4: { emoji: '🐢', name: 'schildpad', food: '🥬' },
-    5: { emoji: '🦊', name: 'vos', food: '🫐' },
-    6: { emoji: '🐧', name: 'pinguïn', food: '🐟' },
-    7: { emoji: '🦒', name: 'giraf', food: '🌿' },
-    8: { emoji: '🐙', name: 'octopus', food: '🦐' },
-    9: { emoji: '🦁', name: 'leeuw', food: '🍖' },
-    10: { emoji: '🐘', name: 'olifant', food: '🍉' }
-  };
-
   var GROUPS = {
     alles: TABLES.slice(),
     makkelijk: [1, 2, 5, 10],
@@ -239,7 +226,7 @@
   }
 
   var api = {
-    TABLES: TABLES, ANIMALS: ANIMALS, GROUPS: GROUPS, FAST_MS: FAST_MS, MAX_LEVEL: MAX_LEVEL,
+    TABLES: TABLES, GROUPS: GROUPS, FAST_MS: FAST_MS, MAX_LEVEL: MAX_LEVEL,
     factKey: factKey, factsOfTable: factsOfTable, shuffle: shuffle, makeQuestion: makeQuestion,
     buildRound: buildRound, nextQuestion: nextQuestion, levelOf: levelOf, updateFact: updateFact,
     smartRound: smartRound, tableSummary: tableSummary, computeStars: computeStars,
