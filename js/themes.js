@@ -89,8 +89,53 @@
     testPassed: function (t) { return '🎉 Toets geslaagd! ' + cap(the(this.items[t])) + ' is helemaal af.'; }
   };
 
+  // Blocky obstacle-course world. Each table is a level with checkpoints.
+  var obby = {
+    id: 'obby',
+    label: 'Obby',
+    icon: '🧱',
+    title: 'Maaltafel-obby',
+    mascot: '🤖',
+    world: 'obby',
+    worldTitle: 'Jouw obby',
+    backLabel: 'Naar de obby',
+    items: {
+      1: { emoji: '🌲', name: 'bos', article: 'het' },
+      2: { emoji: '🏖️', name: 'strand', article: 'het' },
+      3: { emoji: '🌋', name: 'vulkaan', article: 'de' },
+      4: { emoji: '🏔️', name: 'sneeuwberg', article: 'de' },
+      5: { emoji: '🏜️', name: 'woestijn', article: 'de' },
+      6: { emoji: '🌴', name: 'jungle', article: 'de' },
+      7: { emoji: '🪐', name: 'ruimte', article: 'de' },
+      8: { emoji: '🏚️', name: 'spookhuis', article: 'het' },
+      9: { emoji: '🌈', name: 'regenboog', article: 'de' },
+      10: { emoji: '🏰', name: 'kasteel', article: 'het' }
+    },
+    // 0 locked, 1 checkpoint, 2 diamond, 3 level cleared
+    badge: function (t, stars) {
+      return ['🔒', '🚩', '💎', '🏆'][stars];
+    },
+    welcome: function (name) {
+      return 'Welkom in de obby, ' + name + '! Alle levels zitten nog op slot. Speel een spel om je eerste checkpoint te halen.';
+    },
+    tapTip: 'Tik op een level om zijn tafel te oefenen.',
+    helpTip: function (name) { return 'Klaar voor het volgende level, ' + name + '?'; },
+    allDone: 'Wauw, alle levels uitgespeeld! Je bent een echte maaltafel-pro.',
+    starMsg: function (t, s) {
+      var it = this.items[t];
+      var level = 'level ' + t + ': ' + the(it);
+      if (s === 1) return 'Eerste checkpoint in ' + level + '!';
+      if (s === 2) return 'Diamant gevonden in ' + level + '!';
+      return cap(level) + ' is uitgespeeld!';
+    },
+    manyStars: function (n) { return n + ' levels kregen een nieuwe ster!'; },
+    testPassed: function (t) { return '🏆 Toets geslaagd! Level ' + t + ' is helemaal uitgespeeld.'; }
+  };
+
+  var all = [zoo, city, obby];
+
   root.Themes = {
-    list: [zoo, city],
-    get: function (id) { return id === 'city' ? city : zoo; }
+    list: all,
+    get: function (id) { return all.filter(function (th) { return th.id === id; })[0] || zoo; }
   };
 })(this);

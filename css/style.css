@@ -416,6 +416,59 @@ button:disabled { cursor: default; }
 .bar { width: 100%; background: var(--leaf); border-radius: 4px 4px 0 0; min-height: 0; }
 .bar-label { font-size: .9rem; color: var(--muted); }
 
+/* ---------- obby theme ---------- */
+/* Blocky: a studded baseplate, square corners, hard block shadows, and the
+   question on a red 3D brick. */
+
+[data-theme="obby"] {
+  --grass: #e3e7ec;
+  --grass-deep: #bcc4cd;
+  --ink: #1b2129;
+  --muted: #4b5561;
+  --wood-dark: #1b2129;
+  --brick: #e0443a;
+  --brick-dark: #9c2a22;
+  --block-blue: #2f7de1;
+  --radius-lg: 8px;
+  --radius-md: 6px;
+  --radius-sm: 4px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+body[data-theme="obby"] {
+  background:
+    radial-gradient(circle, rgba(27, 33, 41, .09) 3px, transparent 3.5px) 0 0 / 24px 24px,
+    var(--grass);
+}
+[data-theme="obby"] :is(.btn, .chip, .who, .streak, .goal, .icon-btn, .timer, .race-score,
+  .side-score, .progress, .progress-fill, .hold-btn, .bubble, .avatar-opt span) {
+  border-radius: 6px;
+}
+[data-theme="obby"] .pen {
+  background:
+    radial-gradient(circle, rgba(27, 33, 41, .07) 3px, transparent 3.5px) 0 0 / 18px 18px,
+    linear-gradient(var(--block-blue), var(--block-blue)) bottom / 100% 12px no-repeat,
+    #fff;
+  box-shadow: 0 5px 0 var(--grass-deep);
+}
+[data-theme="obby"] .pen.stars-0 { background-color: #eef0f3; }
+[data-theme="obby"] .pen.stars-3 { background-color: #fff3c4; }
+
+[data-theme="obby"] .sign-wrap::before,
+[data-theme="obby"] .sign-wrap::after {
+  width: 12px; border-radius: 0; transform: none;
+  background: linear-gradient(90deg, #8a95a1 0 50%, #6f7a86 50%);
+}
+[data-theme="obby"] .sign {
+  border-radius: 6px;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, .16) 5px, transparent 5.5px) 0 0 / 34px 34px,
+    var(--brick);
+  color: #fff;
+  box-shadow: 0 10px 0 var(--brick-dark), inset 6px 6px 0 rgba(255, 255, 255, .16), inset -6px -6px 0 rgba(0, 0, 0, .14);
+}
+[data-theme="obby"] .sign-ans { border-radius: 4px; background: rgba(0, 0, 0, .22); color: #ffd84d; }
+[data-theme="obby"] .sign-ans.filled { color: #fff; }
+
 /* ---------- daily goal ---------- */
 
 .goal {
@@ -516,7 +569,7 @@ button:disabled { cursor: default; }
 
 /* ---------- theme picker (profile form) ---------- */
 
-.themes { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.themes { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .themes legend { font-weight: 800; font-size: 1.15rem; margin-bottom: 10px; padding: 0; }
 .theme-opt input { position: absolute; opacity: 0; }
 .theme-opt > span {

@@ -119,6 +119,12 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 - Stars make the building rise: 0★ construction site 🚧, 1★ foundation 🏗️, 2★ walls 🧱, 3★ finished 🎉.
 - The question is shown on a yellow construction board with hazard stripes.
 
+**Obby theme (blocky obstacle course).** Inspired by blocky games children know, without using any brand name, logo or character.
+- A robot guide (🤖) leads the child through the game.
+- Each table is a level: 1 🌲 bos, 2 🏖️ strand, 3 🌋 vulkaan, 4 🏔️ sneeuwberg, 5 🏜️ woestijn, 6 🌴 jungle, 7 🪐 ruimte, 8 🏚️ spookhuis, 9 🌈 regenboog, 10 🏰 kasteel.
+- Stars: 0★ locked 🔒, 1★ checkpoint 🚩, 2★ diamond 💎, 3★ cleared 🏆.
+- Studded grey baseplate, square blocky shapes, and the question on a red 3D brick.
+
 **Zoo theme (default).**
 - A friendly guide mascot (e.g. a monkey 🐵) leads the child through the game. It cheers on correct answers and encourages on mistakes.
 - Each table has its own animal and habitat on a zoo map, e.g. 1 🐭 mouse, 2 🐰 rabbit, 3 🐸 frog, 4 🐢 turtle, 5 🦊 fox, 6 🐧 penguin, 7 🦒 giraffe, 8 🐙 octopus, 9 🦁 lion, 10 🐘 elephant. The final list can still change.
@@ -160,7 +166,7 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 |-------|----------|
 | Language | Dutch only |
 | Age | 6–10, mixed. Multiple choice is in v1 |
-| Theme | Chosen per player: zoo (monkey guide, default) or city (builder guide) |
+| Theme | Chosen per player: zoo (monkey guide, default), city (builder guide) or obby (robot guide) |
 | Mixed tables | Yes. Any combination of tables, shuffled together (§4.0) |
 | Division | No, out of scope |
 | Parent overview | Yes, in v1 (§8) |

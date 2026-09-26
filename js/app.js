@@ -3,7 +3,7 @@
   'use strict';
 
   const L = window.Logic;
-  const AVATARS = ['🐵', '🐼', '🐨', '🐯', '🦄', '🐶', '🐱', '🐻', '🐹', '🦉', '🐬', '🦖'];
+  const AVATARS = ['🐵', '🐼', '🐨', '🐯', '🦄', '🐶', '🐱', '🐻', '🐹', '🦉', '🐬', '🦖', '🤖', '👾'];
   const MODES = {
     oefenen: { title: 'Oefenen', icon: '🎯', desc: '10 sommen, zonder tijd', picker: true },
     tijdrace: { title: 'Tijdrace', icon: '⏱️', desc: 'Zoveel mogelijk in 60 seconden', picker: true },
