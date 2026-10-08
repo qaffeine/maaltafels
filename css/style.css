@@ -495,6 +495,9 @@ body[data-theme="obby"] {
 .goal-fill { fill: none; stroke: var(--leaf); stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset .6s ease; }
 .goal-done { background: var(--banana); }
 .goal-done .goal-fill { stroke: var(--leaf-dark); }
+.game-top .goal { min-height: 40px; padding: 4px 12px 4px 6px; font-size: .9rem; white-space: nowrap; }
+.game-top .goal svg { width: 26px; height: 26px; }
+@media (max-width: 420px) { .game-top { gap: 8px; } .game-top .goal span { display: none; } .game-top .goal { padding: 4px; } }
 
 /* ---------- hint after a wrong answer ---------- */
 

@@ -111,9 +111,8 @@
   }
 
   // Ring that fills up towards today's practice goal.
-  function goalChip(p) {
+  function goalChip(p, secs = todaySeconds(p)) {
     const goal = goalMinutes(p);
-    const secs = todaySeconds(p);
     const done = Math.min(1, secs / (goal * 60));
     const min = Math.floor(secs / 60);
     const C = 2 * Math.PI * 11;
@@ -360,6 +359,7 @@
       startedAt: Date.now(),
       timers: []
     };
+    game.goalTick = setInterval(updateGoalChip, 1000);
     if (mode === 'tijdrace') {
       game.endsAt = Date.now() + RACE_MS;
       game.queue.push({ q: L.nextQuestion(tables, null) });
@@ -421,6 +421,7 @@
       <header class="game-top">
         <button class="icon-btn" data-action="quit" aria-label="Stoppen en terug naar de ${theme().world}">✕</button>
         ${progressHtml()}
+        <span id="goal-live">${goalChip(p, liveSeconds())}</span>
       </header>
       <div class="stage">
         <div class="sign-wrap">
@@ -434,6 +435,19 @@
       </div>
       <div class="input-area">${inputHtml}</div>
     </section>`);
+  }
+
+  // Today's practice time including the round in progress, counted the same way as quitGame.
+  function liveSeconds() {
+    const p = profile();
+    const done = game.answers.filter((a) => a.spent != null);
+    const running = game.qStart ? Math.min(Date.now() - game.qStart, MAX_QUESTION_MS) / 1000 : 0;
+    return todaySeconds(p) + practiceSeconds(done) + running;
+  }
+
+  function updateGoalChip() {
+    const el = document.getElementById('goal-live');
+    if (game && !game.finished && el) el.innerHTML = goalChip(profile(), liveSeconds());
   }
 
   function updateTimer() {
@@ -569,6 +583,7 @@
     game.timers.forEach(clearTimeout);
     game.timers = [];
     if (game.tick) clearInterval(game.tick);
+    if (game.goalTick) clearInterval(game.goalTick);
   }
 
   // Stopping halfway still counts the practice time for the daily goal.
