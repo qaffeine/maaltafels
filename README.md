@@ -1,6 +1,6 @@
 # Maaltafel-zoo
 
-A game for learning the multiplication tables 1–10. See `REQUIREMENTS.md`.
+A game for learning the multiplication tables 1–10 and the matching division tables (deeltafels). See `REQUIREMENTS.md`.
 
 ## Play
 

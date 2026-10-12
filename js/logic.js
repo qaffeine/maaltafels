@@ -13,13 +13,29 @@
     moeilijk: [6, 7, 8, 9]
   };
 
+  // Operations: 'x' multiplies (maaltafels), 'd' divides (deeltafels).
+  var OPS = ['x', 'd'];
+
   // a×b and b×a are the same fact.
   function factKey(a, b) {
     return a <= b ? a + 'x' + b : b + 'x' + a;
   }
 
-  function factsOfTable(t) {
-    return TABLES.map(function (b) { return factKey(t, b); });
+  // 42 : 7 and 42 : 6 are different facts: one per divisor (deeltafel) and quotient.
+  function divKey(divisor, quotient) {
+    return (divisor * quotient) + ':' + divisor;
+  }
+
+  function factsOfTable(t, op) {
+    return TABLES.map(function (b) { return op === 'd' ? divKey(t, b) : factKey(t, b); });
+  }
+
+  // "6 × 7 = 42" or "42 : 7 = 6", for lists shown to parents.
+  function factLabel(key) {
+    var d = key.split(':');
+    if (d.length === 2) return d[0] + ' : ' + d[1] + ' = ' + (d[0] / d[1]);
+    var m = key.split('x');
+    return m[0] + ' × ' + m[1] + ' = ' + (m[0] * m[1]);
   }
 
   function shuffle(arr, rnd) {
@@ -32,53 +48,70 @@
     return a;
   }
 
-  function makeQuestion(table, b, swap) {
+  // Multiplication: table × b (or b × table when swapped).
+  // Division: (table·b) : table = b; the table is always the divisor, as in "de deeltafel van 7".
+  // fam is the fact family, so 6 × 7 isn't followed by 42 : 7 (which would give the answer away).
+  function makeQuestion(table, b, swap, op) {
+    if (op === 'd') {
+      return { op: 'd', a: table * b, b: table, answer: b, table: table, key: divKey(table, b), fam: factKey(table, b) };
+    }
     var x = swap ? b : table;
     var y = swap ? table : b;
-    return { a: x, b: y, answer: x * y, table: table, key: factKey(x, y) };
+    return { op: 'x', a: x, b: y, answer: x * y, table: table, key: factKey(x, y), fam: factKey(x, y) };
   }
 
-  // Balanced round: each selected table appears about equally often, questions
-  // from different tables are shuffled together, and no fact repeats back to back.
-  function buildRound(tables, n, rnd) {
+  function normalizeOps(ops) {
+    var out = OPS.filter(function (o) { return (ops || []).indexOf(o) !== -1; });
+    return out.length ? out : ['x'];
+  }
+
+  // Balanced round: each selected table (and operation) appears about equally often,
+  // questions from different tables are shuffled together, and no fact family repeats back to back.
+  function buildRound(tables, n, rnd, ops) {
     rnd = rnd || Math.random;
     tables = normalizeTables(tables);
+    ops = normalizeOps(ops);
     var mixed = tables.length > 1;
+    var units = [];
+    tables.forEach(function (t) { ops.forEach(function (o) { units.push({ t: t, op: o }); }); });
     var slots = [];
-    while (slots.length < n) slots = slots.concat(shuffle(tables, rnd));
+    while (slots.length < n) slots = slots.concat(shuffle(units, rnd));
     slots = shuffle(slots.slice(0, n), rnd);
 
     var bags = {};
-    function draw(t) {
-      if (!bags[t] || bags[t].length === 0) bags[t] = shuffle(TABLES, rnd);
-      return bags[t].pop();
+    function draw(u) {
+      var k = u.op + u.t;
+      if (!bags[k] || bags[k].length === 0) bags[k] = shuffle(TABLES, rnd);
+      return bags[k].pop();
     }
 
     var out = [];
     for (var i = 0; i < slots.length; i++) {
-      var t = slots[i];
+      var u = slots[i];
       var prev = out[out.length - 1];
       var q = null;
       for (var tries = 0; tries < 20; tries++) {
-        q = makeQuestion(t, draw(t), mixed && rnd() < 0.5);
-        if (!prev || q.key !== prev.key) break;
+        q = makeQuestion(u.t, draw(u), mixed && rnd() < 0.5, u.op);
+        if (!prev || q.fam !== prev.fam) break;
       }
       out.push(q);
     }
     return out;
   }
 
-  // Single random question for the time challenge.
-  function nextQuestion(tables, prevKey, rnd) {
+  // Single random question for the time challenge. prevFam: the fact family just asked.
+  function nextQuestion(tables, prevFam, rnd, ops) {
     rnd = rnd || Math.random;
     tables = normalizeTables(tables);
+    ops = normalizeOps(ops);
     var mixed = tables.length > 1;
     var q;
     for (var tries = 0; tries < 30; tries++) {
       var t = tables[Math.floor(rnd() * tables.length)];
       var b = TABLES[Math.floor(rnd() * TABLES.length)];
-      q = makeQuestion(t, b, mixed && rnd() < 0.5);
-      if (q.key !== prevKey) break;
+      var op = ops[Math.floor(rnd() * ops.length)];
+      q = makeQuestion(t, b, mixed && rnd() < 0.5, op);
+      if (q.fam !== prevFam) break;
     }
     return q;
   }
@@ -105,25 +138,32 @@
 
   // Tables a parent marked as already known count as mastered, unless the
   // child actually struggled with that fact here (real results win).
-  function effectiveLevel(stats, a, b, known) {
-    var s = stats[factKey(a, b)];
+  // Division: a is the divisor (the deeltafel), b the quotient.
+  function effectiveLevel(stats, a, b, known, op) {
+    var div = op === 'd';
+    var s = stats[div ? divKey(a, b) : factKey(a, b)];
     var lvl = (s && s.level) || 0;
-    var isKnown = known && (known.indexOf(a) !== -1 || known.indexOf(b) !== -1);
+    var isKnown = known && (known.indexOf(a) !== -1 || (!div && known.indexOf(b) !== -1));
     if (!isKnown) return lvl;
     var struggled = s && s.attempts > 0 && lvl <= 2;
     return struggled ? lvl : MAX_LEVEL;
   }
 
   // Smart practice: ~60% weak (0–2), ~30% medium (3–4), ~10% mastered (5).
-  function smartRound(stats, n, rnd, known) {
+  // div: pass { known: [...] } to also ask division facts, with their own known tables.
+  function smartRound(stats, n, rnd, known, div) {
     rnd = rnd || Math.random;
     var buckets = { weak: [], medium: [], mastered: [] };
+    function add(t, b, op, kn) {
+      var lvl = effectiveLevel(stats, t, b, kn, op);
+      var bucket = lvl <= 2 ? 'weak' : lvl <= 4 ? 'medium' : 'mastered';
+      var key = op === 'd' ? divKey(t, b) : factKey(t, b);
+      buckets[bucket].push({ t: t, b: b, op: op, key: key, fam: factKey(t, b) });
+    }
     TABLES.forEach(function (t) {
       TABLES.forEach(function (b) {
-        if (b < t) return; // one entry per fact
-        var lvl = effectiveLevel(stats, t, b, known);
-        var bucket = lvl <= 2 ? 'weak' : lvl <= 4 ? 'medium' : 'mastered';
-        buckets[bucket].push([t, b]);
+        if (b >= t) add(t, b, 'x', known); // one entry per fact
+        if (div) add(t, b, 'd', div.known);
       });
     });
     var used = {};
@@ -136,16 +176,14 @@
       var prev = out[out.length - 1];
       var q = null;
       for (var k = 0; k < order.length && !q; k++) {
-        var notPrev = buckets[order[k]].filter(function (p) {
-          return !prev || prev.key !== factKey(p[0], p[1]);
-        });
-        var list = notPrev.filter(function (p) { return !used[factKey(p[0], p[1])]; });
+        var notPrev = buckets[order[k]].filter(function (f) { return !prev || prev.fam !== f.fam; });
+        var list = notPrev.filter(function (f) { return !used[f.key]; });
         // Few facts left in this bucket: repeat them rather than switch buckets.
         if (!list.length) list = notPrev;
         if (list.length) {
-          var p = list[Math.floor(rnd() * list.length)];
-          var swap = rnd() < 0.5;
-          q = makeQuestion(swap ? p[1] : p[0], swap ? p[0] : p[1], false);
+          var f = list[Math.floor(rnd() * list.length)];
+          var swap = f.op === 'x' && rnd() < 0.5;
+          q = makeQuestion(swap ? f.b : f.t, swap ? f.t : f.b, false, f.op);
         }
       }
       used[q.key] = true;
@@ -154,9 +192,9 @@
     return out;
   }
 
-  function tableSummary(stats, t) {
+  function tableSummary(stats, t, op) {
     var attempts = 0, correct = 0, allStrong = true;
-    factsOfTable(t).forEach(function (key) {
+    factsOfTable(t, op).forEach(function (key) {
       var s = stats[key];
       if (s) { attempts += s.attempts; correct += s.correct; }
       if (levelOf(stats, key) < 4) allStrong = false;
@@ -167,9 +205,10 @@
   // 1★ practised, 2★ ≥80% correct (min. 10 attempts), 3★ all facts level ≥4 or a passed test.
   // A table only earns stars once it was actually played; sharing facts (3×4 is
   // also in the table of 4) must not hand out stars to tables the child never chose.
-  function computeStars(stats, t, testPassed, played) {
+  // Multiplication and division each earn their own stars (op 'x' or 'd').
+  function computeStars(stats, t, testPassed, played, op) {
     if (played === false) return 0;
-    var s = tableSummary(stats, t);
+    var s = tableSummary(stats, t, op);
     if (s.allStrong || testPassed) return 3;
     if (s.attempts >= 10 && s.correct / s.attempts >= 0.8) return 2;
     if (s.attempts > 0) return 1;
@@ -177,20 +216,25 @@
   }
 
   // Four plausible options: the answer plus neighbouring products.
+  // Division: neighbouring quotients, and the divisor itself (a common slip: 42 : 7 = 7).
   function multipleChoice(q, rnd) {
     rnd = rnd || Math.random;
-    var cands = [
-      q.a * (q.b + 1), q.a * (q.b - 1), (q.a + 1) * q.b, (q.a - 1) * q.b,
-      q.answer + 1, q.answer - 1, q.answer + 10, q.answer - 10, q.answer + 2
-    ];
+    var div = q.op === 'd';
+    var max = div ? 10 : 100;
+    var cands = div
+      ? [q.b, q.answer + 1, q.answer - 1, q.answer + 2, q.answer - 2]
+      : [
+        q.a * (q.b + 1), q.a * (q.b - 1), (q.a + 1) * q.b, (q.a - 1) * q.b,
+        q.answer + 1, q.answer - 1, q.answer + 10, q.answer - 10, q.answer + 2
+      ];
     var opts = [q.answer];
     shuffle(cands, rnd).forEach(function (c) {
-      if (opts.length < 4 && c > 0 && c <= 100 && opts.indexOf(c) === -1) opts.push(c);
+      if (opts.length < 4 && c > 0 && c <= max && opts.indexOf(c) === -1) opts.push(c);
     });
-    // Still short (only near 1 or 100): fill with close numbers inside 1..100.
+    // Still short (only near 1 or the maximum): fill with close numbers inside 1..max.
     for (var extra = 1; opts.length < 4; extra++) {
       [q.answer + extra, q.answer - extra].forEach(function (c) {
-        if (opts.length < 4 && c >= 1 && c <= 100 && opts.indexOf(c) === -1) opts.push(c);
+        if (opts.length < 4 && c >= 1 && c <= max && opts.indexOf(c) === -1) opts.push(c);
       });
     }
     return shuffle(opts, rnd);
@@ -205,10 +249,12 @@
     }).sort(function (a, b) { return a - b; });
   }
 
-  function selectionLabel(tables) {
+  // Key for personal records. Multiplication keeps its old labels ("7", "6+7+8", "Alles").
+  function selectionLabel(tables, ops) {
     tables = normalizeTables(tables);
-    if (tables.length === TABLES.length) return 'Alles';
-    return tables.join('+');
+    ops = normalizeOps(ops);
+    var label = tables.length === TABLES.length ? 'Alles' : tables.join('+');
+    return ops.length === 1 && ops[0] === 'x' ? label : ops.join('') + ':' + label;
   }
 
   // Hardest facts: lowest accuracy first, then slowest average.
@@ -244,6 +290,13 @@
     }
   }
 
+  // Division builds on the multiplication fact the child already knows.
+  function divHintFor(dividend, divisor) {
+    var q = dividend / divisor;
+    return 'Hoeveel keer ' + divisor + ' is ' + dividend + '? ' + q + ' × ' + divisor + ' = ' + dividend +
+      ', dus ' + dividend + ' : ' + divisor + ' = ' + q + '.';
+  }
+
   function dateKey(d) {
     var m = d.getMonth() + 1, day = d.getDate();
     return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
@@ -259,12 +312,13 @@
   }
 
   var api = {
-    TABLES: TABLES, GROUPS: GROUPS, FAST_MS: FAST_MS, MAX_LEVEL: MAX_LEVEL,
-    factKey: factKey, factsOfTable: factsOfTable, shuffle: shuffle, makeQuestion: makeQuestion,
+    TABLES: TABLES, GROUPS: GROUPS, OPS: OPS, FAST_MS: FAST_MS, MAX_LEVEL: MAX_LEVEL,
+    factKey: factKey, divKey: divKey, factLabel: factLabel, factsOfTable: factsOfTable, shuffle: shuffle,
+    makeQuestion: makeQuestion, normalizeOps: normalizeOps,
     buildRound: buildRound, nextQuestion: nextQuestion, levelOf: levelOf, effectiveLevel: effectiveLevel, updateFact: updateFact,
     smartRound: smartRound, tableSummary: tableSummary, computeStars: computeStars,
     multipleChoice: multipleChoice, normalizeTables: normalizeTables, selectionLabel: selectionLabel,
-    hardest: hardest, hintFor: hintFor, dateKey: dateKey, updateStreak: updateStreak
+    hardest: hardest, hintFor: hintFor, divHintFor: divHintFor, dateKey: dateKey, updateStreak: updateStreak
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

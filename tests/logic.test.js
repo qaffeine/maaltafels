@@ -279,3 +279,119 @@ test('smart round with fully mastered stats still returns 20 questions', () => {
   assert.equal(r.length, 20);
   assert.equal(L.smartRound(stats, 20, seeded(4), L.TABLES).length, 20);
 });
+
+// ---------- division (deeltafels) ----------
+
+test('division round: the chosen table is the divisor and answers are 1..10', () => {
+  const round = L.buildRound([7], 10, seeded(11), ['d']);
+  round.forEach((q) => {
+    assert.equal(q.op, 'd');
+    assert.equal(q.b, 7);
+    assert.equal(q.a, q.b * q.answer);
+    assert.equal(q.key, L.divKey(7, q.answer));
+  });
+  assert.deepEqual(round.map((q) => q.answer).sort((x, y) => x - y), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+});
+
+test('division round with several tables never swaps the divisor', () => {
+  L.buildRound([3, 6, 7], 30, seeded(12), ['d']).forEach((q) => {
+    assert.ok([3, 6, 7].includes(q.b));
+    assert.equal(q.b, q.table);
+  });
+});
+
+test('mixed round asks multiplication and division about equally', () => {
+  const round = L.buildRound([4, 8], 40, seeded(13), ['x', 'd']);
+  const div = round.filter((q) => q.op === 'd').length;
+  assert.equal(div, 20);
+});
+
+test('mixed round: 6 × 7 is never followed by 42 : 7 (same fact family)', () => {
+  for (let s = 1; s < 50; s++) {
+    const round = L.buildRound([7], 20, seeded(s), ['x', 'd']);
+    for (let i = 1; i < round.length; i++) assert.notEqual(round[i].fam, round[i - 1].fam);
+  }
+  let prev = null;
+  const rnd = seeded(14);
+  for (let i = 0; i < 200; i++) {
+    const q = L.nextQuestion([2], prev, rnd, ['x', 'd']);
+    assert.notEqual(q.fam, prev);
+    prev = q.fam;
+  }
+});
+
+test('ops default to multiplication', () => {
+  assert.deepEqual(L.normalizeOps(undefined), ['x']);
+  assert.deepEqual(L.normalizeOps(['d', 'x', 'd', '?']), ['x', 'd']);
+  L.buildRound([5], 10, seeded(15)).forEach((q) => assert.equal(q.op, 'x'));
+});
+
+test('division keys and labels', () => {
+  assert.equal(L.divKey(7, 6), '42:7');
+  assert.notEqual(L.divKey(7, 6), L.divKey(6, 7));
+  assert.equal(L.factLabel('42:7'), '42 : 7 = 6');
+  assert.equal(L.factLabel('6x7'), '6 × 7 = 42');
+  assert.equal(L.factsOfTable(7, 'd').length, 10);
+  assert.ok(L.factsOfTable(7, 'd').every((k) => k.endsWith(':7')));
+});
+
+test('multiple choice for division: 4 unique options within 1..10', () => {
+  for (let s = 1; s <= 50; s++) {
+    L.TABLES.forEach((t) => L.TABLES.forEach((b) => {
+      const q = L.makeQuestion(t, b, false, 'd');
+      const opts = L.multipleChoice(q, seeded(s * 100 + t * 10 + b));
+      assert.equal(opts.length, 4);
+      assert.equal(new Set(opts).size, 4);
+      assert.ok(opts.includes(q.answer));
+      opts.forEach((o) => assert.ok(Number.isInteger(o) && o >= 1 && o <= 10, `${q.a}:${q.b}: ${o}`));
+    }));
+  }
+});
+
+test('division hint ends in the right answer', () => {
+  L.TABLES.forEach((t) => L.TABLES.forEach((b) => {
+    const h = L.divHintFor(t * b, t);
+    const nums = h.match(/\d+/g).map(Number);
+    assert.equal(nums[nums.length - 1], b, h);
+  }));
+});
+
+test('division and multiplication earn separate stars', () => {
+  const stats = {};
+  L.factsOfTable(7, 'd').forEach((k) => { stats[k] = { attempts: 5, correct: 5, totalMs: 2000, level: 5 }; });
+  assert.equal(L.computeStars(stats, 7, false, true, 'd'), 3);
+  assert.equal(L.computeStars(stats, 7, false, true, 'x'), 0);
+  assert.equal(L.computeStars(stats, 7, false, true), 0);
+});
+
+test('effective level: a known deeltafel only covers its own divisor', () => {
+  assert.equal(L.effectiveLevel({}, 7, 6, [7], 'd'), L.MAX_LEVEL);
+  assert.equal(L.effectiveLevel({}, 6, 7, [7], 'd'), 0);
+  const stats = { '42:7': { attempts: 2, correct: 0, totalMs: 9000, level: 1 } };
+  assert.equal(L.effectiveLevel(stats, 7, 6, [7], 'd'), 1);
+});
+
+test('smart round only asks division when asked to', () => {
+  assert.ok(L.smartRound({}, 40, seeded(16)).every((q) => q.op === 'x'));
+  const withDiv = L.smartRound({}, 40, seeded(16), [], { known: [] });
+  assert.ok(withDiv.some((q) => q.op === 'd'));
+  assert.ok(withDiv.some((q) => q.op === 'x'));
+  for (let i = 1; i < withDiv.length; i++) assert.notEqual(withDiv[i].fam, withDiv[i - 1].fam);
+});
+
+test('smart round favours weak division facts', () => {
+  const stats = {};
+  L.TABLES.forEach((a) => L.TABLES.forEach((b) => {
+    stats[L.factKey(a, b)] = { attempts: 5, correct: 5, totalMs: 2000, level: 5 };
+    if (a !== 8) stats[L.divKey(a, b)] = { attempts: 5, correct: 5, totalMs: 2000, level: 5 };
+  }));
+  const round = L.smartRound(stats, 20, seeded(17), [], { known: [] });
+  const weak = round.filter((q) => q.op === 'd' && q.b === 8).length;
+  assert.ok(weak >= 8, `expected mostly : 8, got ${weak}`);
+});
+
+test('selectionLabel keeps multiplication records and separates division', () => {
+  assert.equal(L.selectionLabel([7], ['x']), '7');
+  assert.equal(L.selectionLabel([7], ['d']), 'd:7');
+  assert.equal(L.selectionLabel(L.TABLES, ['x', 'd']), 'xd:Alles');
+});

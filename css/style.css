@@ -233,6 +233,9 @@ button:disabled { cursor: default; }
 /* Always takes up its space, so tiles keep the same size with or without the label. */
 .pen-known.is-empty { visibility: hidden; }
 .pen-stars { font-size: 1.2rem; letter-spacing: 2px; color: var(--banana-dark); margin-bottom: 14px; }
+/* Two rows (× and :) once the child does division: only the last row keeps room for the fence. */
+.pen-stars-op { margin-bottom: -4px; }
+.pen-op { display: inline-block; width: 1em; margin-right: 2px; color: var(--muted); font-weight: 900; letter-spacing: 0; }
 .pen.stars-0 { background-color: #eceee4; }
 .pen.stars-0 .pen-animal { filter: grayscale(1); opacity: .5; }
 .pen.stars-0 .pen-stars { color: #9aa597; }
@@ -265,6 +268,7 @@ button:disabled { cursor: default; }
   box-shadow: inset 0 0 0 3px var(--grass-deep);
 }
 .chip[aria-pressed="true"] { background: var(--banana); box-shadow: inset 0 0 0 3px var(--wood-dark); }
+.op-chip { font-size: 1.1rem; }
 
 .picker { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
 .pick {
@@ -329,6 +333,7 @@ button:disabled { cursor: default; }
   text-shadow: 0 3px 0 rgba(0, 0, 0, .25);
   transform-origin: 50% -60px;
 }
+.sign-q { white-space: nowrap; }
 .sign-ans {
   display: inline-block; min-width: 1.6em; padding: 0 .12em;
   border-radius: 14px; background: rgba(0, 0, 0, .18);
@@ -476,6 +481,7 @@ body[data-theme="obby"] {
 [data-theme="obby"] .sign-ans { border-radius: 4px; background: rgba(0, 0, 0, .22); color: #ffd84d; }
 [data-theme="obby"] .sign-ans.filled { color: #fff; }
 
+.known-title { margin: 6px 0 0; font-size: 1rem; }
 .known-picker { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
 .known-chip { justify-content: center; font-size: 1.1rem; }
 .known-chip[aria-pressed="true"]::after { content: " ✓"; }

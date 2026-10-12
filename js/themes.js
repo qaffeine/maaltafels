@@ -11,6 +11,11 @@
     return item.article + ' ' + item.name;
   }
 
+  // "tafel 7" or "deeltafel 7" (op 'd' = division)
+  function tafel(t, op) {
+    return (op === 'd' ? 'deeltafel ' : 'tafel ') + t;
+  }
+
   var zoo = {
     id: 'zoo',
     label: 'Zoo',
@@ -41,11 +46,13 @@
     tapTip: 'Tik op een dier om zijn tafel te oefenen.',
     helpTip: function (name) { return 'Goed bezig, ' + name + '! Welk dier help je vandaag?'; },
     allDone: 'Wauw, alle dieren hebben een kroon! Je bent een echte maaltafel-kampioen.',
-    starMsg: function (t, s) {
-      return cap(the(this.items[t])) + ' van tafel ' + t + ' krijgt ster ' + s + '!';
+    starMsg: function (t, s, op) {
+      return cap(the(this.items[t])) + ' van ' + tafel(t, op) + ' krijgt ster ' + s + '!';
     },
     manyStars: function (n) { return n + ' dieren kregen een nieuwe ster!'; },
-    testPassed: function (t) { return '👑 Toets geslaagd! ' + cap(the(this.items[t])) + ' krijgt een kroon.'; }
+    testPassed: function (t, op) {
+      return '👑 Toets geslaagd! ' + cap(the(this.items[t])) + ' krijgt een kroon' + (op === 'd' ? ' voor delen.' : '.');
+    }
   };
 
   var city = {
@@ -79,14 +86,16 @@
     tapTip: 'Tik op een gebouw om zijn tafel te oefenen.',
     helpTip: function (name) { return 'Goed bezig, ' + name + '! Wat bouwen we vandaag?'; },
     allDone: 'Wauw, je hele stad is af! Je bent een echte maaltafel-bouwmeester.',
-    starMsg: function (t, s) {
+    starMsg: function (t, s, op) {
       var it = this.items[t];
-      if (s === 1) return 'De bouw van ' + the(it) + ' van tafel ' + t + ' is begonnen!';
-      if (s === 2) return 'De muren van ' + the(it) + ' van tafel ' + t + ' staan!';
-      return cap(the(it)) + ' van tafel ' + t + ' is af!';
+      if (s === 1) return 'De bouw van ' + the(it) + ' van ' + tafel(t, op) + ' is begonnen!';
+      if (s === 2) return 'De muren van ' + the(it) + ' van ' + tafel(t, op) + ' staan!';
+      return cap(the(it)) + ' van ' + tafel(t, op) + ' is af!';
     },
     manyStars: function (n) { return n + ' gebouwen zijn verder gebouwd!'; },
-    testPassed: function (t) { return '🎉 Toets geslaagd! ' + cap(the(this.items[t])) + ' is helemaal af.'; }
+    testPassed: function (t, op) {
+      return '🎉 Toets geslaagd! ' + cap(the(this.items[t])) + ' van ' + tafel(t, op) + ' is helemaal af.';
+    }
   };
 
   // Blocky obstacle-course world. Each table is a level with checkpoints.
@@ -121,15 +130,17 @@
     tapTip: 'Tik op een level om zijn tafel te oefenen.',
     helpTip: function (name) { return 'Klaar voor het volgende level, ' + name + '?'; },
     allDone: 'Wauw, alle levels uitgespeeld! Je bent een echte maaltafel-pro.',
-    starMsg: function (t, s) {
+    starMsg: function (t, s, op) {
       var it = this.items[t];
-      var level = 'level ' + t + ': ' + the(it);
+      var level = 'level ' + t + (op === 'd' ? ' (delen)' : '') + ': ' + the(it);
       if (s === 1) return 'Eerste checkpoint in ' + level + '!';
       if (s === 2) return 'Diamant gevonden in ' + level + '!';
       return cap(level) + ' is uitgespeeld!';
     },
     manyStars: function (n) { return n + ' levels kregen een nieuwe ster!'; },
-    testPassed: function (t) { return '🏆 Toets geslaagd! Level ' + t + ' is helemaal uitgespeeld.'; }
+    testPassed: function (t, op) {
+      return '🏆 Toets geslaagd! Level ' + t + (op === 'd' ? ' (delen)' : '') + ' is helemaal uitgespeeld.';
+    }
   };
 
   var all = [zoo, city, obby];

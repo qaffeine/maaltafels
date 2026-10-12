@@ -1,6 +1,6 @@
 # Maaltafels: Requirements
 
-A web game that helps children learn the multiplication tables 1–10.
+A web game that helps children learn the multiplication tables 1–10, and the matching division tables (deeltafels).
 
 Status: **v1.0, ready to build**. All open questions are resolved (see §12).
 Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could (later).
@@ -23,6 +23,8 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 | C-2 | Questions use the form `a × b = ?`, where `a` is the chosen table. With the "mix" option, `b × a` also appears. | M |
 | C-3 | The player can pick one or more tables to practise (see §4.0). | M |
 | C-4 | "Missing factor" questions (`6 × ? = 42`). | C |
+| C-5 | Division (deeltafels), written the Flemish way: `42 : 7 = ?`. The chosen table is always the divisor, the answer is 1–10 (100 facts). `42 : 7` and `42 : 6` are separate facts, and both are separate from `6 × 7`. | M |
+| C-6 | The picker offers **Maal**, **Delen** or **Gemengd** (both, about half each), remembered per profile. In a mixed round a fact family never comes back to back (`6 × 7` is never followed by `42 : 7`, which would give the answer away). | M |
 
 ## 3. Player profiles
 
@@ -39,7 +41,7 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 - A table picker shows the tables 1–10 as toggle buttons. The player can select **one, several, or all** of them.
 - Shortcuts: **"Alles"** (all 10 tables), plus quick groups such as **"Makkelijk" (1, 2, 5, 10)** and **"Moeilijk" (6, 7, 8, 9)**.
 - When several tables are selected, a round **mixes questions from all selected tables at random**. It doesn't go table by table. Each selected table appears about equally often.
-- The last selection is remembered per profile.
+- The last selection (tables and Maal/Delen/Gemengd) is remembered per profile.
 - Stars and records are kept per single table. A mixed round still updates the mastery of every fact it asks.
 
 ### 4.1 Practice (Oefenen). **M**
@@ -55,11 +57,12 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 
 ### 4.3 Smart practice (Slim oefenen). **S**
 - The game picks questions based on the child's weak facts (see §6).
+- Division facts join in once the child has practised division, or a parent marked a deeltafel as known.
 - This is the recommended daily mode (about 5 minutes).
 
 ### 4.4 Test (Toets). **S**
 - 20 questions from the selected tables, with no help and no feedback until the end.
-- The result shows a score and lists the mistakes. The test counts toward "mastered" status (§7).
+- The result shows a score and lists the mistakes. The test counts toward "mastered" status (§7). A mixed test on one table counts for both its maaltafel and its deeltafel.
 
 ### 4.5 Duel. **M**
 - Two players on one screen, side by side. Each player is a profile or a guest.
@@ -79,7 +82,7 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 | Q-3 | Multiple-choice mode (4 options) for beginners, which can be switched on per profile, on by default for new profiles. Distractors are plausible, e.g. neighbouring products `a×(b±1)`. | M |
 | Q-4 | Correct answer: short positive animation and sound, then the next question follows automatically (<1 s). | M |
 | Q-5 | Wrong answer: gentle feedback (no harsh "fail" sound), then the correct fact is shown for ~2 s. | M |
-| Q-6 | After a wrong answer in Practice and Smart practice: the sum as a dot grid (e.g. 7 rows of 8, grouped by 5) plus a trick built on an easier fact (e.g. "maal 9 = maal 10 min één keer"). The child continues with a **Verder** button. Not in Tijdrace, Toets or Duel. | M |
+| Q-6 | After a wrong answer in Practice and Smart practice: the sum as a dot grid (e.g. 7 rows of 8, grouped by 5) plus a trick built on an easier fact (e.g. "maal 9 = maal 10 min één keer"). For division: the dividend as dots in groups of the divisor, and the matching multiplication ("Hoeveel keer 7 is 42? 6 × 7 = 42"). Multiple-choice options for division stay within 1–10 and include the divisor, a common slip. The child continues with a **Verder** button. Not in Tijdrace, Toets or Duel. | M |
 | Q-7 | The same question never comes twice in a row. | M |
 
 ## 6. Adaptive learning
@@ -89,13 +92,14 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 | A-1 | For each profile and each fact (`a×b`, treated as the same fact as `b×a`) the game records: attempts, correct answers, and the last answer time. | M |
 | A-2 | Each fact has a mastery level 0–5 (Leitner-style). Correct and fast (<3 s) → +1. Correct but slow → unchanged. Wrong → back to 1. | S |
 | A-3 | Smart practice mixes the questions: about 60% weak facts (level 0–2), 30% medium, 10% mastered (for review). | S |
+| A-5 | Division has its own mastery per fact, its own stars per table, its own "already known" marks and its own records. | M |
 | A-4 | Parents can mark tables the child already knows (from school or earlier practice). Known tables show 3 stars and an "al gekend" label; unmarking returns to the stars actually earned. Smart practice treats their facts as mastered (only occasional review), unless the child actually got them wrong here. The table picker offers "Nog te leren" (all unmarked tables) and preselects it. | M |
 
 ## 7. Progress & motivation
 
 | ID | Requirement | Prio |
 |----|-------------|------|
-| R-1 | A home screen shows each table with 0–3 stars. 1★ = practised, 2★ = ≥80% correct, 3★ = all 10 facts at mastery level ≥4 (or a passed test). | M |
+| R-1 | A home screen shows each table with 0–3 stars. 1★ = practised, 2★ = ≥80% correct, 3★ = all 10 facts at mastery level ≥4 (or a passed test). Once the child does division, each tile shows a second row (`×` and `:`), and the tile looks as far along as its best row. | M |
 | R-2 | End-of-round summary: score, time, and new stars or a new record. | M |
 | R-3 | Daily streak counter (days in a row with at least one round played). | S |
 | R-6 | Daily goal: a ring on the home screen fills up towards the day's practice minutes (5, 10 or 15; set by a parent, default 5). Reaching it is celebrated once on the results screen. Practice time per question includes feedback and hint time, capped at 20 s. Rounds stopped early (✕) count too, including the question on screen; a stopped duel saves the answers already given. | M |
@@ -106,7 +110,7 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 
 | ID | Requirement | Prio |
 |----|-------------|------|
-| O-1 | A 10×10 grid (heatmap) per profile, coloured by mastery level of each fact, with a colour legend. Tapping a cell shows that fact's attempts, % correct and average answer time. Cells also show a number or icon, so colour isn't the only signal (U-5). | M |
+| O-1 | A 10×10 grid (heatmap) per profile, plus a second grid for division (row = deeltafel, column = answer) once the child does division, coloured by mastery level of each fact, with a colour legend. Tapping a cell shows that fact's attempts, % correct and average answer time. Cells also show a number or icon, so colour isn't the only signal (U-5). | M |
 | O-2 | A list of the 10 hardest facts for the child, plus the practice time per day for the last 7 days (✓ on days the daily goal was reached). | M |
 | O-4 | Parents set the daily goal: 5, 10 or 15 minutes. | M |
 | O-3 | Access to this overview via a simple gate (e.g. "hold for 3 seconds" or a sum an adult can solve), so children don't wander in. | S |
@@ -159,7 +163,7 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 
 - Online accounts, syncing between devices, and leaderboards against other children.
 - A teacher/classroom dashboard with multiple pupils across devices.
-- Tables beyond 10, and other operations (addition, subtraction, **division**).
+- Tables beyond 10, and other operations (addition, subtraction).
 - Spoken questions / text-to-speech.
 
 ## 12. Decisions
@@ -170,7 +174,7 @@ Priorities: **M** = Must (v1), **S** = Should (v1 if time allows), **C** = Could
 | Age | 6–10, mixed. Multiple choice is in v1 |
 | Theme | Chosen per player: zoo (monkey guide, default), city (builder guide) or obby (robot guide) |
 | Mixed tables | Yes. Any combination of tables, shuffled together (§4.0) |
-| Division | No, out of scope |
+| Division | Yes: deeltafels 1–10 with their own stars (§2 C-5) |
 | Parent overview | Yes, in v1 (§8) |
 | Spoken questions | No. Sound effects only |
 | Hosting | GitHub Pages: https://qaffeine.github.io/maaltafels/, installable on iPad |

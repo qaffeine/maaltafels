@@ -18,12 +18,19 @@
   const MAX_QUESTION_MS = 20000; // longer on one question counts as a break
   const LEVEL_NAMES = ['Nog niet geoefend', 'Net begonnen', 'Gaat soms goed', 'Gaat meestal goed', 'Goed gekend', 'Automatisch'];
   const DAY_NAMES = ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za'];
+  const OP_SIGN = { x: '×', d: ':' };
+  const OP_CHOICES = [
+    { ops: ['x'], label: '× Maal' },
+    { ops: ['d'], label: ': Delen' },
+    { ops: ['x', 'd'], label: '× en : Gemengd' }
+  ];
 
   const app = document.getElementById('app');
   let data = Store.load();
   let game = null;
   let pickerMode = null;
   let pickerSel = [];
+  let pickerOps = ['x'];
   let holdTimer = null;
   let duel = null;
   let duelPlayers = ['guest', 'guest'];
@@ -88,18 +95,51 @@
     return (p.streak.last === L.dateKey(today) || p.streak.last === L.dateKey(y)) ? p.streak.count : 0;
   }
 
-  // Tables a parent marked as already known (from school or earlier practice).
-  function knownTables(p) {
-    return L.TABLES.filter((t) => p.known && p.known[t]);
+  // Where a player's progress for one operation lives: multiplication on the
+  // profile itself (as before division existed), division in p.div.
+  function track(p, op) {
+    if (op !== 'd') {
+      p.known = p.known || {};
+      p.played = p.played || {};
+      return p;
+    }
+    p.div = p.div || {};
+    ['stars', 'testPassed', 'played', 'known'].forEach((k) => { p.div[k] = p.div[k] || {}; });
+    return p.div;
   }
 
-  function todoTables(p) {
-    return L.TABLES.filter((t) => !(p.known && p.known[t]));
+  // Division shows up on the home screen, in Slim oefenen and for parents
+  // once the child practised it or a parent marked a deeltafel as known.
+  function usesDivision(p) {
+    const d = track(p, 'd');
+    return Object.keys(d.played).length > 0 || Object.keys(d.known).length > 0;
+  }
+
+  // "7 × 8" or "56 : 8"
+  function sumText(q) {
+    return `${q.a} ${OP_SIGN[q.op]} ${q.b}`;
+  }
+
+  // "tafels van 6, 7", "alle deeltafels", "maal- en deeltafel van 7"
+  function selText(tables, ops) {
+    const kind = ops.length > 1 ? 'maal- en deeltafel' : ops[0] === 'd' ? 'deeltafel' : 'tafel';
+    return tables.length === 10 ? `alle ${kind}s` : `${kind}${tables.length > 1 ? 's' : ''} van ${tables.join(', ')}`;
+  }
+
+  // Tables a parent marked as already known (from school or earlier practice).
+  function knownTables(p, op = 'x') {
+    return L.TABLES.filter((t) => track(p, op).known[t]);
+  }
+
+  // Tables with at least one of the chosen operations still to learn.
+  function todoTables(p, ops = ['x']) {
+    return L.TABLES.filter((t) => ops.some((op) => !track(p, op).known[t]));
   }
 
   // Known tables show as finished; unmarking returns to the stars actually earned.
-  function displayStars(p, t) {
-    return Math.max(p.stars[t] || 0, p.known && p.known[t] ? 3 : 0);
+  function displayStars(p, t, op = 'x') {
+    const tr = track(p, op);
+    return Math.max(tr.stars[t] || 0, tr.known[t] ? 3 : 0);
   }
 
   function goalMinutes(p) {
@@ -269,15 +309,22 @@
       <h2 class="section-title">${theme().worldTitle}</h2>
       <ul class="zoo">
         ${L.TABLES.map((t) => {
+          const div = usesDivision(p);
           const s = displayStars(p, t);
-          const extra = theme().badge(t, s);
+          const ds = div ? displayStars(p, t, 'd') : 0;
+          // The tile looks as far along as its best operation.
+          const look = Math.max(s, ds);
+          const extra = theme().badge(t, look);
           const known = p.known && p.known[t];
-          return `<li><button class="pen stars-${s}" data-action="quick" data-table="${t}" aria-label="Tafel van ${t}, ${item(t).name}, ${s} van 3 sterren${known ? ', al gekend' : ''}. Oefenen.">
+          return `<li><button class="pen stars-${look}" data-action="quick" data-table="${t}" aria-label="Tafel van ${t}, ${item(t).name}, ${s} van 3 sterren${known ? ', al gekend' : ''}${div ? `, delen ${ds} van 3 sterren` : ''}. Oefenen.">
             <span class="pen-animal" aria-hidden="true">${item(t).emoji}</span>
             ${extra ? `<span class="pen-extra" aria-hidden="true">${extra}</span>` : ''}
             <span class="pen-name">Tafel van ${t}</span>
             <span class="pen-known${known ? '' : ' is-empty'}" aria-hidden="true">al gekend</span>
-            <span class="pen-stars" aria-hidden="true">${starsText(s)}</span>
+            ${div
+              ? `<span class="pen-stars pen-stars-op" aria-hidden="true"><span class="pen-op">×</span>${starsText(s)}</span>
+                 <span class="pen-stars" aria-hidden="true"><span class="pen-op">:</span>${starsText(ds)}</span>`
+              : `<span class="pen-stars" aria-hidden="true">${starsText(s)}</span>`}
           </button></li>`;
         }).join('')}
       </ul>
@@ -301,6 +348,7 @@
     const p = profile();
     pickerMode = mode;
     pickerSel = L.normalizeTables(preset || p.lastSelection || [2]);
+    pickerOps = L.normalizeOps(p.lastOps);
     if (mode === 'duel') {
       const other = data.profiles.find((x) => x.id !== p.id);
       duelPlayers = [p.id, other ? other.id : 'guest'];
@@ -311,9 +359,10 @@
   function renderPicker() {
     const m = MODES[pickerMode];
     const sel = pickerSel;
-    const todo = todoTables(profile());
+    const todo = todoTables(profile(), pickerOps);
     const groups = Object.assign({ todo }, L.GROUPS);
     const same = (g) => groups[g].length === sel.length && groups[g].every((t) => sel.includes(t));
+    const sameOps = (ops) => ops.join('') === pickerOps.join('');
     render(`<section class="screen picker-screen">
       ${topbar(profile(), m.title)}
       <div class="guide"><span class="mascot" aria-hidden="true">${theme().mascot}</span>
@@ -321,6 +370,9 @@
           ? 'Kies wie er tegen elkaar speelt en welke tafels. Jullie krijgen allebei dezelfde som en kiezen uit 4 antwoorden. Na 10 rondes wint wie de meeste juist heeft.'
           : 'Welke tafels wil je doen? Kies er één, een paar of allemaal. De sommen worden gemengd.'}</p></div>
       ${pickerMode === 'duel' ? duelPlayersHtml() : ''}
+      <div class="groups ops" role="group" aria-label="Maal of delen">
+        ${OP_CHOICES.map((c) => `<button class="chip op-chip" data-action="ops" data-ops="${c.ops.join('')}" aria-pressed="${sameOps(c.ops)}">${c.label}</button>`).join('')}
+      </div>
       <div class="groups" role="group" aria-label="Snel kiezen">
         ${todo.length && todo.length < 10 ? `<button class="chip" data-action="group" data-group="todo" aria-pressed="${same('todo')}">Nog te leren (${todo.join(', ')})</button>` : ''}
         <button class="chip" data-action="group" data-group="alles" aria-pressed="${same('alles')}">Alles</button>
@@ -334,22 +386,24 @@
           <span class="pick-check" aria-hidden="true">${sel.includes(t) ? '✓' : ''}</span>
         </button>`).join('')}
       </div>
-      <p class="sel-summary">${sel.length ? (sel.length === 10 ? 'Gekozen: alle tafels' : `Gekozen: tafel${sel.length > 1 ? 's' : ''} van ${sel.join(', ')}`) : 'Kies minstens één tafel.'}</p>
+      <p class="sel-summary">${sel.length ? `Gekozen: ${selText(sel, pickerOps)}` : 'Kies minstens één tafel.'}</p>
       <button class="btn primary big" data-action="start" ${sel.length ? '' : 'disabled'}>Start</button>
     </section>`);
   }
 
   // ---------- game ----------
 
-  function startGame(mode, tables) {
+  function startGame(mode, tables, ops) {
     const p = profile();
     tables = L.normalizeTables(tables);
+    ops = L.normalizeOps(ops);
     if (MODES[mode].picker) {
       p.lastSelection = tables;
+      p.lastOps = ops;
       persist();
     }
     game = {
-      mode, tables,
+      mode, tables, ops,
       queue: [],
       idx: 0,
       input: '',
@@ -362,11 +416,14 @@
     game.goalTick = setInterval(updateGoalChip, 1000);
     if (mode === 'tijdrace') {
       game.endsAt = Date.now() + RACE_MS;
-      game.queue.push({ q: L.nextQuestion(tables, null) });
+      game.queue.push({ q: L.nextQuestion(tables, null, undefined, ops) });
       game.timers.push(setTimeout(finishGame, RACE_MS));
       game.tick = setInterval(updateTimer, 200);
     } else {
-      const qs = mode === 'slim' ? L.smartRound(p.stats, ROUND_SIZE.slim, undefined, knownTables(p)) : L.buildRound(tables, ROUND_SIZE[mode]);
+      const div = usesDivision(p) ? { known: knownTables(p, 'd') } : null;
+      const qs = mode === 'slim'
+        ? L.smartRound(p.stats, ROUND_SIZE.slim, undefined, knownTables(p), div)
+        : L.buildRound(tables, ROUND_SIZE[mode], undefined, ops);
       game.queue = qs.map((q) => ({ q, retry: false }));
     }
     showQuestion();
@@ -427,7 +484,7 @@
         <div class="sign-wrap">
           <span class="sign-animal" aria-hidden="true">${animal.emoji}</span>
           <div class="sign" id="sign">
-            <span class="sign-q"><span aria-hidden="true">${q.a} × ${q.b} =</span><span class="sr-only">Hoeveel is ${q.a} maal ${q.b}?</span></span>
+            <span class="sign-q"><span aria-hidden="true">${sumText(q)} =</span><span class="sr-only">Hoeveel is ${q.a} ${q.op === 'd' ? 'gedeeld door' : 'maal'} ${q.b}?</span></span>
             <span class="sign-ans" id="ans" aria-live="polite">?</span>
           </div>
         </div>
@@ -435,6 +492,27 @@
       </div>
       <div class="input-area">${inputHtml}</div>
     </section>`);
+    fitSign();
+  }
+
+  // Long sums (10 × 10, 100 : 10) stay on one line on narrow phones: shrink the sign text until it fits.
+  function fitSign() {
+    const sign = document.getElementById('sign');
+    if (!sign) return;
+    sign.style.fontSize = '';
+    // The sign grows with its text, so check it against the screen edges.
+    // Stop once the sign is back at its minimum width: then the text is no longer what makes it wide.
+    const room = document.documentElement.clientWidth;
+    const minWidth = parseFloat(getComputedStyle(sign).minWidth) || 0;
+    const tooWide = () => {
+      const r = sign.getBoundingClientRect();
+      return (r.left < 0 || r.right > room) && r.width > minWidth + 1;
+    };
+    let size = parseFloat(getComputedStyle(sign).fontSize);
+    while (tooWide() && size > 24) {
+      size -= 2;
+      sign.style.fontSize = `${size}px`;
+    }
   }
 
   // Today's practice time including the round in progress, counted the same way as quitGame.
@@ -465,6 +543,7 @@
     if (el) {
       el.textContent = game.input || '?';
       el.classList.toggle('filled', !!game.input);
+      fitSign();
     }
   }
 
@@ -519,7 +598,7 @@
     } else {
       Sound.play('wrong');
       sign.classList.add('is-wrong');
-      fb.innerHTML = `<span class="fb-icon miss" aria-hidden="true">✗</span> Bijna! <b>${q.a} × ${q.b} = ${q.answer}</b>`;
+      fb.innerHTML = `<span class="fb-icon miss" aria-hidden="true">✗</span> Bijna! <b>${sumText(q)} = ${q.answer}</b>`;
       if (game.mode === 'oefenen' || game.mode === 'slim') {
         // The same question comes back later in the round.
         const at = Math.min(game.idx + 3, game.queue.length);
@@ -531,20 +610,26 @@
   }
 
   // Wrong answer: show the sum as rows of dots plus a trick, and let the child continue.
+  // Division: the dividend as dots, in groups (rows) of the divisor.
   function showHint(q) {
     game.hint = true;
+    const div = q.op === 'd';
+    const nRows = div ? q.answer : q.a;
     const dots = [];
-    for (let r = 0; r < q.a; r++) {
+    for (let r = 0; r < nRows; r++) {
       for (let c = 0; c < q.b; c++) {
         dots.push(`<span class="dot${c === 5 ? ' gap-c' : ''}${r === 5 ? ' gap-r' : ''}"></span>`);
       }
     }
     const rows = `${q.a} ${q.a === 1 ? 'rij' : 'rijen'} van ${q.b}`;
+    const groups = `${q.answer} ${q.answer === 1 ? 'groepje' : 'groepjes'}`;
+    const label = div ? `${q.a} bolletjes in groepjes van ${q.b}: ${groups}` : `${rows} bolletjes, samen ${q.answer}`;
+    const caption = div ? `${q.a} in groepjes van ${q.b}: ${groups}` : `${rows} = ${q.answer}`;
     const area = app.querySelector('.input-area');
     area.innerHTML = `<div class="hint">
-      <div class="dots" style="grid-template-columns: repeat(${q.b}, auto)" role="img" aria-label="${rows} bolletjes, samen ${q.answer}">${dots.join('')}</div>
-      <p class="hint-caption" aria-hidden="true">${rows} = ${q.answer}</p>
-      <p class="hint-tip"><span aria-hidden="true">💡</span> ${L.hintFor(q.a, q.b)}</p>
+      <div class="dots" style="grid-template-columns: repeat(${q.b}, auto)" role="img" aria-label="${label}">${dots.join('')}</div>
+      <p class="hint-caption" aria-hidden="true">${caption}</p>
+      <p class="hint-tip"><span aria-hidden="true">💡</span> ${div ? L.divHintFor(q.a, q.b) : L.hintFor(q.a, q.b)}</p>
       <button class="btn primary big" data-action="continue">Verder</button>
     </div>`;
     area.querySelector('[data-action="continue"]').focus();
@@ -569,7 +654,7 @@
     if (!game) return;
     if (game.mode === 'tijdrace') {
       if (Date.now() >= game.endsAt) return finishGame();
-      game.queue.push({ q: L.nextQuestion(game.tables, current().key) });
+      game.queue.push({ q: L.nextQuestion(game.tables, current().fam, undefined, game.ops) });
       game.idx++;
       return showQuestion();
     }
@@ -629,17 +714,19 @@
     p.rounds = (p.rounds || 0) + 1;
     p.totalCorrect = (p.totalCorrect || 0) + answers.filter((a) => a.correct).length;
 
-    p.played = p.played || {};
-    answers.forEach((a) => { p.played[a.q.table] = true; });
+    answers.forEach((a) => { track(p, a.q.op).played[a.q.table] = true; });
 
-    // Stars never go down (R-5).
+    // Stars never go down (R-5). Maaltafels and deeltafels each have their own.
     const newStars = [];
-    L.TABLES.forEach((t) => {
-      const s = L.computeStars(p.stats, t, p.testPassed[t], !!p.played[t]);
-      if (s > (p.stars[t] || 0)) {
-        p.stars[t] = s;
-        newStars.push({ t, s });
-      }
+    L.OPS.forEach((op) => {
+      const tr = track(p, op);
+      L.TABLES.forEach((t) => {
+        const s = L.computeStars(p.stats, t, tr.testPassed[t], !!tr.played[t], op);
+        if (s > (tr.stars[t] || 0)) {
+          tr.stars[t] = s;
+          newStars.push({ t, s, op });
+        }
+      });
     });
     return { secs, newStars, goalReached };
   }
@@ -652,18 +739,19 @@
     const p = profile();
 
     const total = game.mode === 'tijdrace' ? game.answers.length : ROUND_SIZE[game.mode];
-    const result = { mode: game.mode, tables: game.tables, score: game.score, total, record: null, passed: false };
+    const result = { mode: game.mode, tables: game.tables, ops: game.ops, score: game.score, total, record: null, passed: [] };
 
     // Before the stars are counted, so a passed test gives its 3rd star right away.
+    // A mixed test (maal and delen) counts for both.
     if (game.mode === 'toets' && game.tables.length === 1 && game.score >= 18) {
-      result.passed = true;
-      p.testPassed[game.tables[0]] = true;
+      result.passed = game.ops.slice();
+      game.ops.forEach((op) => { track(p, op).testPassed[game.tables[0]] = true; });
     }
 
     Object.assign(result, applyRound(p, game.answers));
 
     if (game.mode === 'tijdrace') {
-      const label = L.selectionLabel(game.tables);
+      const label = L.selectionLabel(game.tables, game.ops);
       const prev = p.records[label] || 0;
       result.recordLabel = label;
       result.best = Math.max(prev, game.score);
@@ -674,7 +762,7 @@
     }
 
     // A passed test already announces the finished table; don't repeat it.
-    if (result.passed) result.newStars = result.newStars.filter((n) => n.t !== game.tables[0]);
+    if (result.passed.length) result.newStars = result.newStars.filter((n) => n.t !== game.tables[0]);
 
     result.mistakes = game.answers.filter((a) => !a.correct);
     persist();
@@ -692,9 +780,9 @@
     else if (ratio >= 0.5) msg = 'Goed bezig! Nog wat oefenen en je kent ze.';
     else msg = 'Goed dat je oefent! Elke keer word je beter.';
 
-    if (r.newStars.length || r.record || r.passed || r.goalReached) Sound.play('reward');
+    if (r.newStars.length || r.record || r.passed.length || r.goalReached) Sound.play('reward');
 
-    const selLabel = r.tables.length === 10 ? 'alle tafels' : `tafel${r.tables.length > 1 ? 's' : ''} van ${r.tables.join(', ')}`;
+    const selLabel = selText(r.tables, r.ops);
     const scoreLine = r.mode === 'tijdrace'
       ? `<p class="big-score"><b>${r.score}</b> goed in 60 seconden</p>
          <p class="sub">${r.record ? (r.record.prev ? `Vorig record: ${r.record.prev}` : 'Je eerste record!') : `Jouw record: ${r.best}`} · ${esc(selLabel)}</p>`
@@ -708,21 +796,21 @@
         ${scoreLine}
         ${r.goalReached ? `<p class="reward"><span class="reward-animal" aria-hidden="true">🎯</span>
           Dagdoel gehaald! Je hebt vandaag ${goalMinutes(profile())} minuten geoefend.</p>` : ''}
-        ${r.passed ? `<p class="reward">${theme().testPassed(r.tables[0])}</p>` : ''}
+        ${r.passed.map((op) => `<p class="reward">${theme().testPassed(r.tables[0], op)}</p>`).join('')}
         ${r.newStars.length > 3
           ? `<p class="reward"><span class="reward-animal" aria-hidden="true">${r.newStars.map((n) => item(n.t).emoji).join(' ')}</span>
               ${theme().manyStars(r.newStars.length)}</p>`
           : r.newStars.map((n) => `<p class="reward"><span class="reward-animal" aria-hidden="true">${item(n.t).emoji}</span>
-              ${theme().starMsg(n.t, n.s)} <span class="stars" aria-label="${n.s} van 3 sterren">${starsText(n.s)}</span></p>`).join('')}
+              ${theme().starMsg(n.t, n.s, n.op)} <span class="stars" aria-label="${n.s} van 3 sterren">${starsText(n.s)}</span></p>`).join('')}
         ${r.mode === 'toets' && r.mistakes.length ? `<h2>Deze waren nog niet juist</h2>
-          <ul class="mistakes">${r.mistakes.map((a) => `<li><b>${a.q.a} × ${a.q.b} = ${a.q.answer}</b> <span class="muted">(jij: ${a.given})</span></li>`).join('')}</ul>` : ''}
+          <ul class="mistakes">${r.mistakes.map((a) => `<li><b>${sumText(a.q)} = ${a.q.answer}</b> <span class="muted">(jij: ${a.given})</span></li>`).join('')}</ul>` : ''}
       </div>
       <div class="row center">
         <button class="btn primary" data-action="again" autofocus>Nog eens</button>
         <button class="btn ghost" data-action="home">${theme().backLabel}</button>
       </div>
     </section>`);
-    game = { mode: r.mode, tables: r.tables, finished: true, timers: [] };
+    game = { mode: r.mode, tables: r.tables, ops: r.ops, finished: true, timers: [] };
   }
 
   // ---------- duel ----------
@@ -773,13 +861,18 @@
 
   // Rounds: both players get the same question and the same 4 choices.
   // The next round starts only when both have answered.
-  function startDuel(tables) {
+  function startDuel(tables, ops) {
     stopDuel();
     game = null;
     tables = L.normalizeTables(tables);
+    ops = L.normalizeOps(ops);
+    const p = profile();
+    p.lastSelection = tables;
+    p.lastOps = ops;
+    persist();
     duel = {
-      tables,
-      qs: L.buildRound(tables, DUEL_ROUNDS),
+      tables, ops,
+      qs: L.buildRound(tables, DUEL_ROUNDS, undefined, ops),
       round: 0,
       players: [makeDuelPlayer(duelPlayers[0], 0), makeDuelPlayer(duelPlayers[1], 1)],
       timers: [],
@@ -838,7 +931,7 @@
     app.querySelectorAll('.round-num').forEach((el) => { el.textContent = duel.round + 1; });
     duel.players.forEach((pl, i) => {
       pl.choice = null;
-      document.getElementById(`q-${i}`).textContent = `${q.a} × ${q.b} =`;
+      document.getElementById(`q-${i}`).textContent = `${sumText(q)} =`;
       const ans = document.getElementById(`ans-${i}`);
       ans.textContent = '?';
       ans.classList.remove('filled');
@@ -893,7 +986,7 @@
         fb.innerHTML = '<span class="fb-icon ok" aria-hidden="true">✓</span> Juist!';
       } else {
         anyWrong = true;
-        fb.innerHTML = `<span class="fb-icon miss" aria-hidden="true">✗</span> <b>${q.a} × ${q.b} = ${q.answer}</b>`;
+        fb.innerHTML = `<span class="fb-icon miss" aria-hidden="true">✗</span> <b>${sumText(q)} = ${q.answer}</b>`;
       }
     });
     Sound.play(anyRight ? 'correct' : 'wrong');
@@ -972,9 +1065,47 @@
 
   // ---------- parent overview ----------
 
-  function levelClass(stats, a, b) {
-    const s = stats[L.factKey(a, b)];
+  function levelClass(stats, key) {
+    const s = stats[key];
     return s && s.attempts ? s.level : 0;
+  }
+
+  // Mastery grid. Multiplication: row × column. Division: row = deeltafel (divisor), column = answer.
+  function heatCard(p, op) {
+    const div = op === 'd';
+    const keyOf = (r, c) => (div ? L.divKey(r, c) : L.factKey(r, c));
+    const sumOf = (r, c) => (div ? `${r * c} : ${r}` : `${r} × ${c}`);
+    return `<div class="card">
+        <h2>Welke ${div ? 'deelsommen' : 'maalsommen'} kent ${esc(p.name)}?</h2>
+        <p class="muted">${div
+          ? 'Elke rij is een deeltafel, elke kolom de uitkomst: rij 7, kolom 6 is 42 : 7.'
+          : 'Elk vakje is één som (rij × kolom).'} Hoe donkerder, hoe beter gekend. Tik op een vakje voor details.</p>
+        <div class="heat-wrap">
+          <table class="heat">
+            <thead><tr><th scope="col"><span class="sr-only">${div ? 'deeltafel, uitkomst' : 'rij maal kolom'}</span>${OP_SIGN[op]}</th>${L.TABLES.map((b) => `<th scope="col">${b}</th>`).join('')}</tr></thead>
+            <tbody>
+              ${L.TABLES.map((a) => `<tr><th scope="row">${a}</th>${L.TABLES.map((b) => {
+                const key = keyOf(a, b);
+                const lvl = levelClass(p.stats, key);
+                return `<td><button class="cell lvl-${lvl}" data-action="cell" data-op="${op}" data-key="${key}" aria-label="${sumOf(a, b)}: ${LEVEL_NAMES[lvl]}">${lvl || '·'}</button></td>`;
+              }).join('')}</tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <ul class="legend">
+          ${LEVEL_NAMES.map((n, i) => `<li><span class="swatch lvl-${i}">${i || '·'}</span>${n}</li>`).join('')}
+        </ul>
+        <p class="cell-detail" id="cell-detail-${op}" role="status">Tik op een vakje om te zien hoe vaak die som geoefend werd.</p>
+      </div>`;
+  }
+
+  function knownPickerHtml(p, op) {
+    const tr = track(p, op);
+    return `<h3 class="known-title">${op === 'd' ? ': Deeltafels' : '× Maaltafels'}</h3>
+      <div class="known-picker" role="group" aria-label="Al gekende ${op === 'd' ? 'deeltafels' : 'maaltafels'}">
+        ${L.TABLES.map((t) => `<button class="chip known-chip" data-action="toggle-known" data-op="${op}" data-table="${t}" aria-pressed="${!!tr.known[t]}">
+          <span aria-hidden="true">${item(t).emoji}</span> ${t}</button>`).join('')}
+      </div>`;
   }
 
   function showParent() {
@@ -996,32 +1127,12 @@
         <p class="muted">${p.rounds || 0} rondes gespeeld · ${p.totalCorrect || 0} juiste antwoorden · ${Math.round(weekMin)} min geoefend deze week</p>
       </div>
 
-      <div class="card">
-        <h2>Welke sommen kent ${esc(p.name)}?</h2>
-        <p class="muted">Elk vakje is één som (rij × kolom). Hoe donkerder, hoe beter gekend. Tik op een vakje voor details.</p>
-        <div class="heat-wrap">
-          <table class="heat">
-            <thead><tr><th scope="col"><span class="sr-only">rij maal kolom</span>×</th>${L.TABLES.map((b) => `<th scope="col">${b}</th>`).join('')}</tr></thead>
-            <tbody>
-              ${L.TABLES.map((a) => `<tr><th scope="row">${a}</th>${L.TABLES.map((b) => {
-                const lvl = levelClass(p.stats, a, b);
-                return `<td><button class="cell lvl-${lvl}" data-action="cell" data-a="${a}" data-b="${b}" aria-label="${a} × ${b}: ${LEVEL_NAMES[lvl]}">${lvl || '·'}</button></td>`;
-              }).join('')}</tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-        <ul class="legend">
-          ${LEVEL_NAMES.map((n, i) => `<li><span class="swatch lvl-${i}">${i || '·'}</span>${n}</li>`).join('')}
-        </ul>
-        <p class="cell-detail" id="cell-detail" role="status">Tik op een vakje om te zien hoe vaak die som geoefend werd.</p>
-      </div>
+      ${heatCard(p, 'x')}
+      ${usesDivision(p) ? heatCard(p, 'd') : ''}
 
       <div class="card">
         <h2>Moeilijkste sommen</h2>
-        ${hard.length ? `<ol class="hard-list">${hard.map((f) => {
-          const [a, b] = f.key.split('x');
-          return `<li><b>${a} × ${b} = ${a * b}</b><span class="muted">${f.correct} van ${f.attempts} juist · gemiddeld ${fmtSeconds(f.avgMs)}</span></li>`;
-        }).join('')}</ol>` : `<p class="muted">Nog geen moeilijke sommen gevonden. Ze verschijnen hier zodra ${esc(p.name)} een paar rondes gespeeld heeft.</p>`}
+        ${hard.length ? `<ol class="hard-list">${hard.map((f) => `<li><b>${L.factLabel(f.key)}</b><span class="muted">${f.correct} van ${f.attempts} juist · gemiddeld ${fmtSeconds(f.avgMs)}</span></li>`).join('')}</ol>` : `<p class="muted">Nog geen moeilijke sommen gevonden. Ze verschijnen hier zodra ${esc(p.name)} een paar rondes gespeeld heeft.</p>`}
       </div>
 
       <div class="card">
@@ -1038,11 +1149,9 @@
 
       <div class="card">
         <h2>Tafels die ${esc(p.name)} al kent</h2>
-        <p class="muted">Duid tafels aan die ${esc(p.name)} al kent, van school of van vroeger oefenen. Ze krijgen meteen 3 sterren, en bij Slim oefenen komen ze alleen nog af en toe terug om te herhalen. Zo gaat de oefentijd naar wat nog niet gekend is.</p>
-        <div class="known-picker" role="group" aria-label="Al gekende tafels">
-          ${L.TABLES.map((t) => `<button class="chip known-chip" data-action="toggle-known" data-table="${t}" aria-pressed="${!!(p.known && p.known[t])}">
-            <span aria-hidden="true">${item(t).emoji}</span> ${t}</button>`).join('')}
-        </div>
+        <p class="muted">Duid tafels aan die ${esc(p.name)} al kent, van school of van vroeger oefenen. Ze krijgen meteen 3 sterren, en bij Slim oefenen komen ze alleen nog af en toe terug om te herhalen. Zo gaat de oefentijd naar wat nog niet gekend is. Maaltafels en deeltafels tellen apart.</p>
+        ${knownPickerHtml(p, 'x')}
+        ${knownPickerHtml(p, 'd')}
       </div>
 
       <div class="card">
@@ -1055,18 +1164,18 @@
     </section>`);
   }
 
-  function showCellDetail(a, b) {
+  function showCellDetail(key, op) {
     const p = profile();
-    const s = p.stats[L.factKey(a, b)];
-    const el = document.getElementById('cell-detail');
+    const s = p.stats[key];
+    const el = document.getElementById(`cell-detail-${op}`);
     app.querySelectorAll('.cell.selected').forEach((c) => c.classList.remove('selected'));
-    const btn = app.querySelector(`.cell[data-a="${a}"][data-b="${b}"]`);
+    const btn = app.querySelector(`.cell[data-key="${key}"]`);
     if (btn) btn.classList.add('selected');
     if (!s || !s.attempts) {
-      el.innerHTML = `<b>${a} × ${b} = ${a * b}</b>: nog niet geoefend.`;
+      el.innerHTML = `<b>${L.factLabel(key)}</b>: nog niet geoefend.`;
       return;
     }
-    el.innerHTML = `<b>${a} × ${b} = ${a * b}</b>: ${s.attempts}× gevraagd, ${Math.round((s.correct / s.attempts) * 100)}% juist, gemiddeld ${fmtSeconds(s.totalMs / s.attempts)}. Niveau ${s.level}: ${LEVEL_NAMES[s.level].toLowerCase()}.`;
+    el.innerHTML = `<b>${L.factLabel(key)}</b>: ${s.attempts}× gevraagd, ${Math.round((s.correct / s.attempts) * 100)}% juist, gemiddeld ${fmtSeconds(s.totalMs / s.attempts)}. Niveau ${s.level}: ${LEVEL_NAMES[s.level].toLowerCase()}.`;
   }
 
   // ---------- parent gate (hold 3 s) ----------
@@ -1125,10 +1234,16 @@
       if (MODES[m].picker) showPicker(m);
       else startGame(m, L.TABLES);
     },
+    ops: (el) => {
+      pickerOps = L.normalizeOps(el.dataset.ops.split(''));
+      renderPicker();
+      const again = app.querySelector(`.op-chip[data-ops="${el.dataset.ops}"]`);
+      if (again) again.focus();
+    },
     quick: (el) => showPicker('oefenen', [Number(el.dataset.table)]),
     group: (el) => {
       const g = el.dataset.group;
-      pickerSel = g === 'todo' ? todoTables(profile()) : L.GROUPS[g].slice();
+      pickerSel = g === 'todo' ? todoTables(profile(), pickerOps) : L.GROUPS[g].slice();
       renderPicker();
     },
     'toggle-table': (el) => {
@@ -1140,8 +1255,8 @@
     },
     start: () => {
       if (!pickerSel.length) return;
-      if (pickerMode === 'duel') startDuel(pickerSel);
-      else startGame(pickerMode, pickerSel);
+      if (pickerMode === 'duel') startDuel(pickerSel, pickerOps);
+      else startGame(pickerMode, pickerSel, pickerOps);
     },
     'duel-player': (el) => { duelPlayers[Number(el.dataset.slot)] = el.dataset.id; renderPicker(); },
     'duel-seat': (el) => {
@@ -1149,20 +1264,22 @@
       persist();
       app.querySelectorAll('[data-action="duel-seat"]').forEach((b) => b.setAttribute('aria-pressed', b === el));
     },
-    'duel-again': () => startDuel(duel.tables),
+    'duel-again': () => startDuel(duel.tables, duel.ops),
     'quit-duel': () => quitDuel(),
     continue: () => continueAfterHint(),
     'toggle-known': (el) => {
       const p = profile();
       const t = Number(el.dataset.table);
-      p.known = p.known || {};
-      if (p.known[t]) delete p.known[t];
-      else p.known[t] = true;
-      // Next time a table is picked, start with what's still to learn.
-      const todo = todoTables(p);
-      if (todo.length) p.lastSelection = todo;
+      const known = track(p, el.dataset.op).known;
+      if (known[t]) delete known[t];
+      else known[t] = true;
+      // Next time a table is picked, start with what's still to learn
+      // (only when this is the operation the child practises).
+      const ops = L.normalizeOps(p.lastOps);
+      const todo = todoTables(p, ops);
+      if (todo.length && ops.includes(el.dataset.op)) p.lastSelection = todo;
       persist();
-      el.setAttribute('aria-pressed', !!p.known[t]);
+      el.setAttribute('aria-pressed', !!known[t]);
     },
     'set-goal': (el) => {
       profile().settings.goal = Number(el.dataset.goal);
@@ -1174,8 +1291,8 @@
     ok: () => submitAnswer(game && game.input),
     choose: (el) => submitAnswer(el.dataset.value),
     quit: () => quitGame(),
-    again: () => { const g = game; startGame(g.mode, g.tables); },
-    cell: (el) => showCellDetail(Number(el.dataset.a), Number(el.dataset.b))
+    again: () => { const g = game; startGame(g.mode, g.tables, g.ops); },
+    cell: (el) => showCellDetail(el.dataset.key, el.dataset.op)
   };
 
   app.addEventListener('click', (e) => {
@@ -1217,6 +1334,8 @@
     else if (e.key === 'Enter') { submitAnswer(game.input); e.preventDefault(); }
     else if (e.key === 'Escape') quitGame();
   });
+
+  window.addEventListener('resize', fitSign);
 
   document.addEventListener('keyup', (e) => {
     if (e.key === 'Enter' || e.key === ' ') cancelHold();
