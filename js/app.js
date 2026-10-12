@@ -108,7 +108,7 @@
     return p.div;
   }
 
-  // Division shows up on the home screen, in Slim oefenen and for parents
+  // Division joins Slim oefenen and the parent heatmap
   // once the child practised it or a parent marked a deeltafel as known.
   function usesDivision(p) {
     const d = track(p, 'd');
@@ -309,22 +309,19 @@
       <h2 class="section-title">${theme().worldTitle}</h2>
       <ul class="zoo">
         ${L.TABLES.map((t) => {
-          const div = usesDivision(p);
           const s = displayStars(p, t);
-          const ds = div ? displayStars(p, t, 'd') : 0;
+          const ds = displayStars(p, t, 'd');
           // The tile looks as far along as its best operation.
           const look = Math.max(s, ds);
           const extra = theme().badge(t, look);
           const known = p.known && p.known[t];
-          return `<li><button class="pen stars-${look}" data-action="quick" data-table="${t}" aria-label="Tafel van ${t}, ${item(t).name}, ${s} van 3 sterren${known ? ', al gekend' : ''}${div ? `, delen ${ds} van 3 sterren` : ''}. Oefenen.">
+          return `<li><button class="pen stars-${look}" data-action="quick" data-table="${t}" aria-label="Tafel van ${t}, ${item(t).name}, maal ${s} van 3 sterren${known ? ', al gekend' : ''}, delen ${ds} van 3 sterren. Oefenen.">
             <span class="pen-animal" aria-hidden="true">${item(t).emoji}</span>
             ${extra ? `<span class="pen-extra" aria-hidden="true">${extra}</span>` : ''}
             <span class="pen-name">Tafel van ${t}</span>
             <span class="pen-known${known ? '' : ' is-empty'}" aria-hidden="true">al gekend</span>
-            ${div
-              ? `<span class="pen-stars pen-stars-op" aria-hidden="true"><span class="pen-op">×</span>${starsText(s)}</span>
-                 <span class="pen-stars" aria-hidden="true"><span class="pen-op">:</span>${starsText(ds)}</span>`
-              : `<span class="pen-stars" aria-hidden="true">${starsText(s)}</span>`}
+            <span class="pen-stars pen-stars-op" aria-hidden="true"><span class="pen-op">×</span>${starsText(s)}</span>
+            <span class="pen-stars" aria-hidden="true"><span class="pen-op">:</span>${starsText(ds)}</span>
           </button></li>`;
         }).join('')}
       </ul>
